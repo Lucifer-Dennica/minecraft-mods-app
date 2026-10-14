@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,9 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import ru.minecraftmods.app.data.Mod
@@ -40,6 +39,13 @@ fun SearchScreen() {
     var mods by remember { mutableStateOf<List<Mod>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
+
+    val categories = listOf(
+        "Приключение", "Оптимизация", "Технологии", "Магия",
+        "Мобы", "Снаряжение", "Еда", "Декор",
+        "Транспорт", "Хранение", "Сражения", "Квесты",
+        "Библиотека", "Утилиты", "Реализм", "Мультиплеер"
+    )
 
     fun doSearch() {
         if (query.isBlank()) return
@@ -79,7 +85,7 @@ fun SearchScreen() {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Поиск модов...") },
+                placeholder = { Text("Поиск модов на русском...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -91,17 +97,17 @@ fun SearchScreen() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = source == "all",
-                    onClick = { source = "all"; doSearch() },
+                    onClick = { source = "all"; if (query.isNotBlank()) doSearch() },
                     label = { Text("Все") }
                 )
                 FilterChip(
                     selected = source == "modrinth",
-                    onClick = { source = "modrinth"; doSearch() },
+                    onClick = { source = "modrinth"; if (query.isNotBlank()) doSearch() },
                     label = { Text("Modrinth") }
                 )
                 FilterChip(
                     selected = source == "curseforge",
-                    onClick = { source = "curseforge"; doSearch() },
+                    onClick = { source = "curseforge"; if (query.isNotBlank()) doSearch() },
                     label = { Text("CurseForge") }
                 )
             }
@@ -116,12 +122,38 @@ fun SearchScreen() {
                 Text(if (loading) "Поиск..." else "Найти")
             }
 
-            if (statusMessage.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text(statusMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = "Категории:",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(categories) { cat ->
+                    FilterChip(
+                        selected = query.equals(cat, ignoreCase = true),
+                        onClick = {
+                            query = cat
+                            doSearch()
+                        },
+                        label = { Text(cat, fontSize = 12.sp) }
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
+
+            if (statusMessage.isNotEmpty()) {
+                Text(statusMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+            }
 
             if (loading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -206,12 +238,7 @@ fun ModCard(mod: Mod, onInstall: () -> Unit) {
     }
 }
 
-/**
- * Скачивает файл мода и открывает его через системный Intent.
- * Android предложит выбрать приложение — Minecraft импортирует мод.
- */
 fun downloadAndInstall(context: Context, mod: Mod) {
-    // Здесь нужен корутин-скоуп. Для простоты запускаем новый поток.
     Thread {
         try {
             val files = kotlinx.coroutines.runBlocking {
@@ -233,7 +260,6 @@ fun downloadAndInstall(context: Context, mod: Mod) {
                 }
             }
 
-            // Открываем файл через системный Intent — Android сам предложит Minecraft
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
