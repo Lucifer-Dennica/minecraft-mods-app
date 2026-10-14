@@ -8,7 +8,6 @@ import java.util.concurrent.TimeUnit
 
 object ModRepository {
 
-    // ⚠️ ЗАМЕНИ на свой URL Cloudflare Worker
     private const val BASE_URL = "https://mods-proxy.denis22142qwe.workers.dev/"
 
     private val client = OkHttpClient.Builder()
@@ -26,8 +25,15 @@ object ModRepository {
         .build()
         .create(ApiService::class.java)
 
-    suspend fun search(query: String, source: String = "all"): List<Mod> {
-        return api.search(query, source).results
+    suspend fun search(
+        query: String,
+        source: String = "all",
+        limit: Int = 20,
+        offset: Int = 0,
+        gameVersion: String = "",
+        sort: String = "downloads"
+    ): List<Mod> {
+        return api.search(query, source, limit, offset, gameVersion, sort).results
     }
 
     suspend fun getFiles(id: String, source: String): List<ModFile> {
