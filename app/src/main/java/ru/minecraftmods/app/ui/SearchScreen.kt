@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,6 +26,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import ru.minecraftmods.app.data.Mod
 import ru.minecraftmods.app.data.ModRepository
+import ru.minecraftmods.app.data.Screenshot
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +45,8 @@ fun SearchScreen() {
     var loadingMore by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
     var selectedMod by remember { mutableStateOf<Mod?>(null) }
+    var screenshots by remember { mutableStateOf<List<Screenshot>>(emptyList()) }
+    var loadingScreenshots by remember { mutableStateOf(false) }
     var offset by remember { mutableStateOf(0) }
     var hasMore by remember { mutableStateOf(true) }
 
@@ -54,7 +58,6 @@ fun SearchScreen() {
 
     val gameVersions = listOf("1.21", "1.20", "1.19", "1.18", "1.17", "1.16")
 
-    // ВАЖНО: сначала объявляем doSearch, потом resetAndSearch
     fun doSearch() {
         if (query.isBlank() && gameVersion.isBlank()) return
         scope.launch {
@@ -267,7 +270,19 @@ fun SearchScreen() {
                         items(mods) { mod ->
                             ModCard(
                                 mod = mod,
-                                onClick = { selectedMod = mod },
+                                onClick = {
+                                    selectedMod = mod
+                                    loadingScreenshots = true
+                                    scope.launch {
+                                        try {
+                                            screenshots = ModRepository.getScreenshots(mod.id, mod.source)
+                                        } catch (e: Exception) {
+                                            screenshots = emptyList()
+                                        } finally {
+                                            loadingScreenshots = false
+                                        }
+                                    }
+                                },
                                 onInstall = { downloadAndInstall(context, mod) }
                             )
                         }
@@ -298,10 +313,18 @@ fun SearchScreen() {
 
         selectedMod?.let { mod ->
             ModalBottomSheet(
-                onDismissRequest = { selectedMod = null },
+                onDismissRequest = {
+                    selectedMod = null
+                    screenshots = emptyList()
+                },
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ) {
-                ModDetailsContent(mod = mod, context = context)
+                ModDetailsContent(
+                    mod = mod,
+                    screenshots = screenshots,
+                    loadingScreenshots = loadingScreenshots,
+                    context = context
+                )
             }
         }
     }
@@ -370,7 +393,12 @@ fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
 }
 
 @Composable
-fun ModDetailsContent(mod: Mod, context: Context) {
+fun ModDetailsContent(
+    mod: Mod,
+    screenshots: List<Screenshot>,
+    loadingScreenshots: Boolean,
+    context: Context
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -393,6 +421,32 @@ fun ModDetailsContent(mod: Mod, context: Context) {
         }
 
         Spacer(Modifier.height(16.dp))
+
+        if (loadingScreenshots) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (screenshots.isNotEmpty()) {
+            Text("Скриншоты", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Spacer(Modifier.height(8.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(screenshots) { screenshot ->
+                    AsyncImage(
+                        model = screenshot.url,
+                        contentDescription = screenshot.title,
+                        modifier = Modifier
+                            .height(180.dp)
+                            .width(280.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
         Text("Описание", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Spacer(Modifier.height(8.dp))
         Text(mod.description ?: "Нет описания", fontSize = 14.sp)
@@ -443,13 +497,22 @@ fun downloadAndInstall(context: Context, mod: Mod) {
                 }
             }
 
+            val extension = file.filename.substringAfterLast('.', "")
+            val mimeType = when (extension) {
+                "mcaddon" -> "application/x-minecraft-addon"
+                "mcpack" -> "application/x-minecraft-pack"
+                "mcworld" -> "application/x-minecraft-world"
+                "mctemplate" -> "application/x-minecraft-template"
+                else -> "application/octet-stream"
+            }
+
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
                 targetFile
             )
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/octet-stream")
+                setDataAndType(uri, mimeType)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
