@@ -1,29 +1,46 @@
 package ru.minecraftmods.app.data
 
-import retrofit2.http.GET
-import retrofit2.http.Query
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
-interface ApiService {
+object ModRepository {
 
-    @GET("search")
+    private const val BASE_URL = "https://mods-proxy.denis22142qwe.workers.dev/"
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .addInterceptor(HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BASIC
+        })
+        .build()
+
+    private val api: ApiService = Retrofit.Builder()
+        .baseUrl(BASE_URL)
+        .client(client)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+        .create(ApiService::class.java)
+
     suspend fun search(
-        @Query("query") query: String,
-        @Query("source") source: String = "all",
-        @Query("limit") limit: Int = 20,
-        @Query("offset") offset: Int = 0,
-        @Query("game_version") gameVersion: String = "",
-        @Query("sort") sort: String = "downloads"
-    ): SearchResponse
+        query: String,
+        source: String = "all",
+        limit: Int = 20,
+        offset: Int = 0,
+        gameVersion: String = "",
+        sort: String = "downloads"
+    ): List<Mod> {
+        return api.search(query, source, limit, offset, gameVersion, sort).results
+    }
 
-    @GET("files")
-    suspend fun getFiles(
-        @Query("id") id: String,
-        @Query("source") source: String
-    ): FilesResponse
+    suspend fun getFiles(id: String, source: String): List<ModFile> {
+        return api.getFiles(id, source).files
+    }
 
-    @GET("details")
-    suspend fun getScreenshots(
-        @Query("id") id: String,
-        @Query("source") source: String
-    ): ScreenshotsResponse
+    suspend fun getScreenshots(id: String, source: String): List<Screenshot> {
+        return api.getScreenshots(id, source).screenshots
+    }
 }
