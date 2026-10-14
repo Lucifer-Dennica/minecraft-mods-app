@@ -20,4 +20,10 @@ interface ApiService {
         @Query("id") id: String,
         @Query("source") source: String
     ): FilesResponse
+
+    @GET("details")
+    suspend fun getScreenshots(
+        @Query("id") id: String,
+        @Query("source") source: String
+    ): ScreenshotsResponse
 }
