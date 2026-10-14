@@ -39,4 +39,8 @@ object ModRepository {
     suspend fun getFiles(id: String, source: String): List<ModFile> {
         return api.getFiles(id, source).files
     }
+
+    suspend fun getScreenshots(id: String, source: String): List<Screenshot> {
+        return api.getScreenshots(id, source).screenshots
+    }
 }
