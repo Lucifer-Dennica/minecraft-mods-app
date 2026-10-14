@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,17 +52,9 @@ fun SearchScreen() {
         "Сражения", "Квесты", "Библиотека", "Утилиты", "Реализм", "Мультиплеер"
     )
 
-    val gameVersions = listOf(
-        "1.21", "1.20", "1.19", "1.18", "1.17", "1.16"
-    )
+    val gameVersions = listOf("1.21", "1.20", "1.19", "1.18", "1.17", "1.16")
 
-    fun resetAndSearch() {
-        offset = 0
-        hasMore = true
-        mods = emptyList()
-        doSearch()
-    }
-
+    // ВАЖНО: сначала объявляем doSearch, потом resetAndSearch
     fun doSearch() {
         if (query.isBlank() && gameVersion.isBlank()) return
         scope.launch {
@@ -92,11 +85,18 @@ fun SearchScreen() {
         }
     }
 
+    fun resetAndSearch() {
+        offset = 0
+        hasMore = true
+        mods = emptyList()
+        doSearch()
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
-                modifier = Modifier.width(280.dp),
+                modifier = Modifier.width(300.dp),
                 drawerContainerColor = MaterialTheme.colorScheme.surface
             ) {
                 Spacer(Modifier.height(16.dp))
@@ -132,7 +132,6 @@ fun SearchScreen() {
                 }
 
                 Spacer(Modifier.height(16.dp))
-
                 Text("Сортировка", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(
@@ -152,7 +151,6 @@ fun SearchScreen() {
                 }
 
                 Spacer(Modifier.height(16.dp))
-
                 Text("Версия игры", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
                 LazyRow(
@@ -298,7 +296,6 @@ fun SearchScreen() {
             }
         }
 
-        // Модальное окно с деталями мода
         selectedMod?.let { mod ->
             ModalBottomSheet(
                 onDismissRequest = { selectedMod = null },
@@ -400,7 +397,7 @@ fun ModDetailsContent(mod: Mod, context: Context) {
         Spacer(Modifier.height(8.dp))
         Text(mod.description ?: "Нет описания", fontSize = 14.sp)
 
-        if (!mod.gameVersions.isNullOrEmpty()) {
+        if (mod.gameVersions.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             Text("Поддерживаемые версии", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Spacer(Modifier.height(8.dp))
@@ -419,6 +416,8 @@ fun ModDetailsContent(mod: Mod, context: Context) {
             Spacer(Modifier.width(8.dp))
             Text("Установить мод")
         }
+
+        Spacer(Modifier.height(24.dp))
     }
 }
 
