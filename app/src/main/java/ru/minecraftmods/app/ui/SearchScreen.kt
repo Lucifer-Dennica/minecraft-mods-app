@@ -4,12 +4,10 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,150 +31,290 @@ import java.io.File
 fun SearchScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
 
     var query by remember { mutableStateOf("") }
     var source by remember { mutableStateOf("all") }
+    var sort by remember { mutableStateOf("downloads") }
+    var gameVersion by remember { mutableStateOf("") }
     var mods by remember { mutableStateOf<List<Mod>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
+    var loadingMore by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
+    var selectedMod by remember { mutableStateOf<Mod?>(null) }
+    var offset by remember { mutableStateOf(0) }
+    var hasMore by remember { mutableStateOf(true) }
 
     val categories = listOf(
-        "Приключение", "Оптимизация", "Технологии", "Магия",
-        "Мобы", "Снаряжение", "Еда", "Декор",
-        "Транспорт", "Хранение", "Сражения", "Квесты",
-        "Библиотека", "Утилиты", "Реализм", "Мультиплеер"
+        "Приключение", "Оптимизация", "Технологии", "Магия", "Мобы",
+        "Снаряжение", "Еда", "Декор", "Транспорт", "Хранение",
+        "Сражения", "Квесты", "Библиотека", "Утилиты", "Реализм", "Мультиплеер"
     )
 
+    val gameVersions = listOf(
+        "1.21", "1.20", "1.19", "1.18", "1.17", "1.16"
+    )
+
+    fun resetAndSearch() {
+        offset = 0
+        hasMore = true
+        mods = emptyList()
+        doSearch()
+    }
+
     fun doSearch() {
-        if (query.isBlank()) return
+        if (query.isBlank() && gameVersion.isBlank()) return
         scope.launch {
-            loading = true
+            if (offset == 0) loading = true else loadingMore = true
             statusMessage = ""
             try {
-                val result = ModRepository.search(query.trim(), source)
-                mods = result
-                if (result.isEmpty()) statusMessage = "Ничего не найдено"
+                val result = ModRepository.search(
+                    query = query.trim(),
+                    source = source,
+                    limit = 20,
+                    offset = offset,
+                    gameVersion = gameVersion,
+                    sort = sort
+                )
+                if (offset == 0) {
+                    mods = result
+                } else {
+                    mods = mods + result
+                }
+                hasMore = result.size >= 20
+                if (mods.isEmpty()) statusMessage = "Ничего не найдено"
             } catch (e: Exception) {
                 statusMessage = "Ошибка: ${e.message}"
             } finally {
                 loading = false
+                loadingMore = false
             }
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Моды для Minecraft", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(horizontal = 12.dp)
-        ) {
-            Spacer(Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                placeholder = { Text("Поиск модов на русском...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = source == "all",
-                    onClick = { source = "all"; if (query.isNotBlank()) doSearch() },
-                    label = { Text("Все") }
-                )
-                FilterChip(
-                    selected = source == "modrinth",
-                    onClick = { source = "modrinth"; if (query.isNotBlank()) doSearch() },
-                    label = { Text("Modrinth") }
-                )
-                FilterChip(
-                    selected = source == "curseforge",
-                    onClick = { source = "curseforge"; if (query.isNotBlank()) doSearch() },
-                    label = { Text("CurseForge") }
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Button(
-                onClick = { doSearch() },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !loading && query.isNotBlank()
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                modifier = Modifier.width(280.dp),
+                drawerContainerColor = MaterialTheme.colorScheme.surface
             ) {
-                Text(if (loading) "Поиск..." else "Найти")
-            }
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Фильтры",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+                Spacer(Modifier.height(16.dp))
 
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                text = "Категории:",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(categories) { cat ->
+                Text("Источник", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     FilterChip(
-                        selected = query.equals(cat, ignoreCase = true),
-                        onClick = {
-                            query = cat
-                            doSearch()
-                        },
-                        label = { Text(cat, fontSize = 12.sp) }
+                        selected = source == "all",
+                        onClick = { source = "all"; resetAndSearch() },
+                        label = { Text("Все") }
+                    )
+                    FilterChip(
+                        selected = source == "modrinth",
+                        onClick = { source = "modrinth"; resetAndSearch() },
+                        label = { Text("Modrinth") }
+                    )
+                    FilterChip(
+                        selected = source == "curseforge",
+                        onClick = { source = "curseforge"; resetAndSearch() },
+                        label = { Text("CurseForge") }
                     )
                 }
-            }
 
-            Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(16.dp))
 
-            if (statusMessage.isNotEmpty()) {
-                Text(statusMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                Text("Сортировка", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
-            }
-
-            if (loading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(mods) { mod ->
-                        ModCard(mod = mod, onInstall = { downloadAndInstall(context, mod) })
+                    FilterChip(
+                        selected = sort == "downloads",
+                        onClick = { sort = "downloads"; resetAndSearch() },
+                        label = { Text("По загрузкам") }
+                    )
+                    FilterChip(
+                        selected = sort == "updated",
+                        onClick = { sort = "updated"; resetAndSearch() },
+                        label = { Text("По дате") }
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Text("Версия игры", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                LazyRow(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = gameVersion == "",
+                            onClick = { gameVersion = ""; resetAndSearch() },
+                            label = { Text("Любая") }
+                        )
+                    }
+                    items(gameVersions) { version ->
+                        FilterChip(
+                            selected = gameVersion == version,
+                            onClick = { gameVersion = version; resetAndSearch() },
+                            label = { Text(version) }
+                        )
                     }
                 }
+
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(16.dp))
+
+                Text(
+                    "Категории",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Spacer(Modifier.height(8.dp))
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 16.dp)
+                ) {
+                    items(categories) { cat ->
+                        NavigationDrawerItem(
+                            label = { Text(cat) },
+                            selected = query.equals(cat, ignoreCase = true),
+                            onClick = {
+                                query = cat
+                                scope.launch { drawerState.close() }
+                                resetAndSearch()
+                            },
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Моды для Minecraft", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Меню")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                )
+            }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp)
+            ) {
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Поиск модов на русском...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Button(
+                    onClick = { resetAndSearch() },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !loading && (query.isNotBlank() || gameVersion.isNotBlank())
+                ) {
+                    Text(if (loading) "Поиск..." else "Найти")
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                if (statusMessage.isNotEmpty()) {
+                    Text(statusMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                if (loading && offset == 0) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+                        items(mods) { mod ->
+                            ModCard(
+                                mod = mod,
+                                onClick = { selectedMod = mod },
+                                onInstall = { downloadAndInstall(context, mod) }
+                            )
+                        }
+
+                        if (hasMore && mods.isNotEmpty()) {
+                            item {
+                                if (loadingMore) {
+                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = {
+                                            offset += 20
+                                            doSearch()
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Загрузить ещё")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Модальное окно с деталями мода
+        selectedMod?.let { mod ->
+            ModalBottomSheet(
+                onDismissRequest = { selectedMod = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
+                ModDetailsContent(mod = mod, context = context)
             }
         }
     }
 }
 
 @Composable
-fun ModCard(mod: Mod, onInstall: () -> Unit) {
+fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
@@ -187,18 +325,14 @@ fun ModCard(mod: Mod, onInstall: () -> Unit) {
                 AsyncImage(
                     model = mod.iconUrl,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
                 )
             } else {
                 Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Download, contentDescription = null)
+                    Icon(Icons.Default.Extension, contentDescription = null)
                 }
             }
 
@@ -208,14 +342,14 @@ fun ModCard(mod: Mod, onInstall: () -> Unit) {
                 Text(
                     text = mod.title,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = mod.description ?: "",
                     fontSize = 12.sp,
-                    maxLines = 2,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -234,6 +368,56 @@ fun ModCard(mod: Mod, onInstall: () -> Unit) {
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun ModDetailsContent(mod: Mod, context: Context) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (!mod.iconUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = mod.iconUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp))
+                )
+            }
+            Spacer(Modifier.width(16.dp))
+            Column {
+                Text(mod.title, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text("Автор: ${mod.author ?: "Неизвестно"}", fontSize = 14.sp)
+                Text("Источник: ${mod.source}", fontSize = 12.sp)
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Text("Описание", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Spacer(Modifier.height(8.dp))
+        Text(mod.description ?: "Нет описания", fontSize = 14.sp)
+
+        if (!mod.gameVersions.isNullOrEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            Text("Поддерживаемые версии", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(mod.gameVersions.joinToString(", "), fontSize = 14.sp)
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Text("Загрузок: ${mod.downloads}", fontSize = 14.sp)
+
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = { downloadAndInstall(context, mod) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Download, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Установить мод")
         }
     }
 }
