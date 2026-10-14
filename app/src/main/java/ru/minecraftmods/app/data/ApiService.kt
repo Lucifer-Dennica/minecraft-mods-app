@@ -9,7 +9,10 @@ interface ApiService {
     suspend fun search(
         @Query("query") query: String,
         @Query("source") source: String = "all",
-        @Query("limit") limit: Int = 20
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0,
+        @Query("game_version") gameVersion: String = "",
+        @Query("sort") sort: String = "downloads"
     ): SearchResponse
 
     @GET("files")
