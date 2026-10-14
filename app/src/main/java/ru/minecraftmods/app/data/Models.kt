@@ -27,3 +27,13 @@ data class ModFile(
     @SerializedName("filename") val filename: String,
     @SerializedName("size") val size: Long = 0
 )
+
+data class ScreenshotsResponse(
+    @SerializedName("screenshots") val screenshots: List<Screenshot> = emptyList()
+)
+
+data class Screenshot(
+    @SerializedName("url") val url: String,
+    @SerializedName("title") val title: String = "",
+    @SerializedName("description") val description: String = ""
+)
