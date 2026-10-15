@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,6 +58,12 @@ fun SearchScreen() {
     var fullscreenImage by remember { mutableStateOf<String?>(null) }
     var offset by remember { mutableStateOf(0) }
     var hasMore by remember { mutableStateOf(true) }
+    var showSettings by remember { mutableStateOf(false) }
+
+    if (showSettings) {
+        SettingsScreen(onBack = { showSettings = false })
+        return
+    }
 
     val categories = listOf(
         "Приключение", "Оптимизация", "Технологии", "Магия", "Мобы",
@@ -213,6 +220,20 @@ fun SearchScreen() {
                         )
                     }
                 }
+
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider()
+                NavigationDrawerItem(
+                    label = { Text("Настройки", fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        showSettings = true
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+                Spacer(Modifier.height(16.dp))
             }
         }
     ) {
@@ -223,6 +244,11 @@ fun SearchScreen() {
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "Меню")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { showSettings = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Настройки")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -242,7 +268,7 @@ fun SearchScreen() {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Поиск модов на русском...") },
+                    placeholder = { Text("Поиск модов...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -337,7 +363,6 @@ fun SearchScreen() {
             }
         }
 
-        // Полноэкранный просмотр изображения
         fullscreenImage?.let { url ->
             FullScreenImageDialog(
                 imageUrl = url,
@@ -494,9 +519,6 @@ fun ModDetailsContent(
     }
 }
 
-/**
- * Полноэкранный диалог для просмотра изображения с поддержкой зума и панорамирования.
- */
 @Composable
 fun FullScreenImageDialog(
     imageUrl: String,
@@ -556,10 +578,6 @@ fun FullScreenImageDialog(
     }
 }
 
-/**
- * Скачивает файл мода и пытается открыть его напрямую в Minecraft.
- * Если Minecraft не установлен — показывает сообщение.
- */
 fun downloadAndInstall(context: Context, mod: Mod) {
     Thread {
         try {
@@ -592,7 +610,6 @@ fun downloadAndInstall(context: Context, mod: Mod) {
                 }
             }
 
-            // Определяем MIME-тип по расширению
             val extension = file.filename.substringAfterLast('.', "")
             val mimeType = when (extension) {
                 "mcaddon" -> "application/x-minecraft-addon"
@@ -608,10 +625,9 @@ fun downloadAndInstall(context: Context, mod: Mod) {
                 targetFile
             )
 
-            // Пытаемся открыть файл напрямую в Minecraft
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mimeType)
-                setPackage("com.mojang.minecraftpe") // Явно указываем пакет Minecraft
+                setPackage("com.mojang.minecraftpe")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
@@ -619,11 +635,10 @@ fun downloadAndInstall(context: Context, mod: Mod) {
             try {
                 context.startActivity(intent)
             } catch (e: Exception) {
-                // Minecraft не установлен или не может открыть файл
                 kotlinx.coroutines.runBlocking {
                     Toast.makeText(
                         context,
-                        "Minecraft не найден. Установите игру, чтобы импортировать мод.",
+                        "Minecraft не найден. Установите игру для импорта мода.",
                         Toast.LENGTH_LONG
                     ).show()
                 }
