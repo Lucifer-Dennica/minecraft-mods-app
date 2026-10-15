@@ -1,5 +1,6 @@
 package ru.minecraftmods.app.data
 
+import android.content.Context
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
@@ -10,34 +11,59 @@ import kotlin.coroutines.resumeWithException
 
 object TranslatorManager {
 
-    private var enRuTranslator: Translator? = null
-    private var ruEnTranslator: Translator? = null
-    private var modelDownloaded = false
+    // Список поддерживаемых языков приложения
+    data class LanguageOption(val code: String, val displayName: String, val flag: String)
+
+    val SUPPORTED_LANGUAGES = listOf(
+        LanguageOption("ru", "Русский", "🇷🇺"),
+        LanguageOption("en", "English", "🇬🇧"),
+        LanguageOption("es", "Español", "🇪🇸"),
+        LanguageOption("de", "Deutsch", "🇩🇪"),
+        LanguageOption("fr", "Français", "🇫🇷"),
+        LanguageOption("it", "Italiano", "🇮🇹"),
+        LanguageOption("pt", "Português", "🇵🇹"),
+        LanguageOption("pl", "Polski", "🇵🇱"),
+        LanguageOption("tr", "Türkçe", "🇹🇷"),
+        LanguageOption("uk", "Українська", "🇺🇦"),
+        LanguageOption("zh", "中文", "🇨🇳"),
+        LanguageOption("ja", "日本語", "🇯🇵"),
+        LanguageOption("ko", "한국어", "🇰🇷")
+    )
+
+    private var enToTargetTranslator: Translator? = null
+    private var targetToEnTranslator: Translator? = null
+    private var currentTargetLanguage: String = "ru"
 
     /**
-     * Скачивает языковые модели (EN <-> RU) при первом запуске.
-     * Вызывается один раз при старте приложения.
+     * Скачивает модели перевода для указанного языка.
+     * EN -> TARGET и TARGET -> EN.
      */
-    suspend fun prepareModels(): Boolean {
+    suspend fun prepareModels(context: Context, targetLanguageCode: String): Boolean {
         return try {
-            val enRuOptions = TranslatorOptions.Builder()
-                .setSourceLanguage(TranslateLanguage.ENGLISH)
-                .setTargetLanguage(TranslateLanguage.RUSSIAN)
-                .build()
-            enRuTranslator = Translation.getClient(enRuOptions)
+            close() // Закрываем предыдущие модели, если были
 
-            val ruEnOptions = TranslatorOptions.Builder()
-                .setSourceLanguage(TranslateLanguage.RUSSIAN)
+            currentTargetLanguage = targetLanguageCode
+
+            val targetMlKitLang = mapToMlKitCode(targetLanguageCode)
+
+            val enToTargetOptions = TranslatorOptions.Builder()
+                .setSourceLanguage(TranslateLanguage.ENGLISH)
+                .setTargetLanguage(targetMlKitLang)
+                .build()
+            enToTargetTranslator = Translation.getClient(enToTargetOptions)
+
+            val targetToEnOptions = TranslatorOptions.Builder()
+                .setSourceLanguage(targetMlKitLang)
                 .setTargetLanguage(TranslateLanguage.ENGLISH)
                 .build()
-            ruEnTranslator = Translation.getClient(ruEnOptions)
+            targetToEnTranslator = Translation.getClient(targetToEnOptions)
 
             suspendCancellableCoroutine<Unit> { cont ->
-                enRuTranslator?.downloadModelIfNeeded()
+                enToTargetTranslator?.downloadModelIfNeeded()
                     ?.addOnSuccessListener {
-                        ruEnTranslator?.downloadModelIfNeeded()
+                        targetToEnTranslator?.downloadModelIfNeeded()
                             ?.addOnSuccessListener {
-                                modelDownloaded = true
+                                LanguagePreferences.setModelsReady(context, true)
                                 cont.resume(Unit)
                             }
                             ?.addOnFailureListener { e -> cont.resumeWithException(e) }
@@ -47,18 +73,28 @@ object TranslatorManager {
             true
         } catch (e: Exception) {
             e.printStackTrace()
+            LanguagePreferences.setModelsReady(context, false)
             false
         }
     }
 
     /**
-     * Перевод EN -> RU (для описаний модов).
+     * Проверяет, готова ли модель для текущего языка.
      */
-    suspend fun translateEnToRu(text: String): String {
-        if (text.isBlank() || !modelDownloaded) return text
+    fun isReady(context: Context): Boolean {
+        return LanguagePreferences.isModelsReady(context) && enToTargetTranslator != null
+    }
+
+    /**
+     * Перевод EN -> выбранный язык (для описаний модов).
+     */
+    suspend fun translateEnToTarget(text: String): String {
+        if (text.isBlank() || enToTargetTranslator == null) return text
+        // Если целевой язык английский — ничего не переводим
+        if (currentTargetLanguage == "en") return text
         return try {
             suspendCancellableCoroutine { cont ->
-                enRuTranslator?.translate(text)
+                enToTargetTranslator?.translate(text)
                     ?.addOnSuccessListener { result -> cont.resume(result) }
                     ?.addOnFailureListener { cont.resume(text) }
             }
@@ -68,13 +104,14 @@ object TranslatorManager {
     }
 
     /**
-     * Перевод RU -> EN (для поисковых запросов).
+     * Перевод с выбранного языка -> EN (для поисковых запросов).
      */
-    suspend fun translateRuToEn(text: String): String {
-        if (text.isBlank() || !modelDownloaded) return text
+    suspend fun translateTargetToEn(text: String): String {
+        if (text.isBlank() || targetToEnTranslator == null) return text
+        if (currentTargetLanguage == "en") return text
         return try {
             suspendCancellableCoroutine { cont ->
-                ruEnTranslator?.translate(text)
+                targetToEnTranslator?.translate(text)
                     ?.addOnSuccessListener { result -> cont.resume(result) }
                     ?.addOnFailureListener { cont.resume(text) }
             }
@@ -83,8 +120,32 @@ object TranslatorManager {
         }
     }
 
+    /**
+     * Преобразует наш код языка в код ML Kit.
+     */
+    private fun mapToMlKitCode(code: String): String {
+        return when (code) {
+            "ru" -> TranslateLanguage.RUSSIAN
+            "en" -> TranslateLanguage.ENGLISH
+            "es" -> TranslateLanguage.SPANISH
+            "de" -> TranslateLanguage.GERMAN
+            "fr" -> TranslateLanguage.FRENCH
+            "it" -> TranslateLanguage.ITALIAN
+            "pt" -> TranslateLanguage.PORTUGUESE
+            "pl" -> TranslateLanguage.POLISH
+            "tr" -> TranslateLanguage.TURKISH
+            "uk" -> TranslateLanguage.UKRAINIAN
+            "zh" -> TranslateLanguage.CHINESE
+            "ja" -> TranslateLanguage.JAPANESE
+            "ko" -> TranslateLanguage.KOREAN
+            else -> TranslateLanguage.RUSSIAN
+        }
+    }
+
     fun close() {
-        enRuTranslator?.close()
-        ruEnTranslator?.close()
+        enToTargetTranslator?.close()
+        targetToEnTranslator?.close()
+        enToTargetTranslator = null
+        targetToEnTranslator = null
     }
 }
