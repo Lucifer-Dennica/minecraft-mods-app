@@ -33,7 +33,18 @@ object ModRepository {
         gameVersion: String = "",
         sort: String = "downloads"
     ): List<Mod> {
-        return api.search(query, source, limit, offset, gameVersion, sort).results
+        // Переводим запрос на английский перед отправкой
+        val englishQuery = TranslatorManager.translateRuToEn(query)
+
+        val rawMods = api.search(englishQuery, source, limit, offset, gameVersion, sort).results
+
+        // Переводим результаты обратно на русский
+        return rawMods.map { mod ->
+            mod.copy(
+                title = TranslatorManager.translateEnToRu(mod.title),
+                description = mod.description?.let { TranslatorManager.translateEnToRu(it) }
+            )
+        }
     }
 
     suspend fun getFiles(id: String, source: String): List<ModFile> {
