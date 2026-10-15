@@ -54,4 +54,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // === ML Kit для офлайн-перевода ===
+    implementation("com.google.mlkit:translate:17.0.3")
 }
