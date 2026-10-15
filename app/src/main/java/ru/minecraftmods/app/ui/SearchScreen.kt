@@ -2,6 +2,9 @@ package ru.minecraftmods.app.ui
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -14,12 +17,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -47,6 +54,7 @@ fun SearchScreen() {
     var selectedMod by remember { mutableStateOf<Mod?>(null) }
     var screenshots by remember { mutableStateOf<List<Screenshot>>(emptyList()) }
     var loadingScreenshots by remember { mutableStateOf(false) }
+    var fullscreenImage by remember { mutableStateOf<String?>(null) }
     var offset by remember { mutableStateOf(0) }
     var hasMore by remember { mutableStateOf(true) }
 
@@ -323,9 +331,18 @@ fun SearchScreen() {
                     mod = mod,
                     screenshots = screenshots,
                     loadingScreenshots = loadingScreenshots,
-                    context = context
+                    context = context,
+                    onScreenshotClick = { url -> fullscreenImage = url }
                 )
             }
+        }
+
+        // Полноэкранный просмотр изображения
+        fullscreenImage?.let { url ->
+            FullScreenImageDialog(
+                imageUrl = url,
+                onDismiss = { fullscreenImage = null }
+            )
         }
     }
 }
@@ -397,7 +414,8 @@ fun ModDetailsContent(
     mod: Mod,
     screenshots: List<Screenshot>,
     loadingScreenshots: Boolean,
-    context: Context
+    context: Context,
+    onScreenshotClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -439,7 +457,8 @@ fun ModDetailsContent(
                         modifier = Modifier
                             .height(180.dp)
                             .width(280.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onScreenshotClick(screenshot.url) },
                         contentScale = ContentScale.Crop
                     )
                 }
@@ -475,13 +494,84 @@ fun ModDetailsContent(
     }
 }
 
+/**
+ * Полноэкранный диалог для просмотра изображения с поддержкой зума и панорамирования.
+ */
+@Composable
+fun FullScreenImageDialog(
+    imageUrl: String,
+    onDismiss: () -> Unit
+) {
+    var scale by remember { mutableStateOf(1f) }
+    var offsetX by remember { mutableStateOf(0f) }
+    var offsetY by remember { mutableStateOf(0f) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 5f)
+                        if (scale > 1f) {
+                            offsetX += pan.x
+                            offsetY += pan.y
+                        } else {
+                            offsetX = 0f
+                            offsetY = 0f
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offsetX,
+                        translationY = offsetY
+                    ),
+                contentScale = ContentScale.Fit
+            )
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Закрыть",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Скачивает файл мода и пытается открыть его напрямую в Minecraft.
+ * Если Minecraft не установлен — показывает сообщение.
+ */
 fun downloadAndInstall(context: Context, mod: Mod) {
     Thread {
         try {
             val files = kotlinx.coroutines.runBlocking {
                 ModRepository.getFiles(mod.id, mod.source)
             }
-            if (files.isEmpty()) return@Thread
+            if (files.isEmpty()) {
+                kotlinx.coroutines.runBlocking {
+                    Toast.makeText(context, "Файлы мода не найдены", Toast.LENGTH_SHORT).show()
+                }
+                return@Thread
+            }
 
             val file = files.first()
             val targetFile = File(context.cacheDir, file.filename)
@@ -489,7 +579,12 @@ fun downloadAndInstall(context: Context, mod: Mod) {
             val client = OkHttpClient()
             val request = Request.Builder().url(file.url).build()
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@Thread
+                if (!response.isSuccessful) {
+                    kotlinx.coroutines.runBlocking {
+                        Toast.makeText(context, "Ошибка скачивания", Toast.LENGTH_SHORT).show()
+                    }
+                    return@Thread
+                }
                 response.body?.byteStream()?.use { input ->
                     targetFile.outputStream().use { output ->
                         input.copyTo(output)
@@ -497,6 +592,7 @@ fun downloadAndInstall(context: Context, mod: Mod) {
                 }
             }
 
+            // Определяем MIME-тип по расширению
             val extension = file.filename.substringAfterLast('.', "")
             val mimeType = when (extension) {
                 "mcaddon" -> "application/x-minecraft-addon"
@@ -511,15 +607,33 @@ fun downloadAndInstall(context: Context, mod: Mod) {
                 "${context.packageName}.fileprovider",
                 targetFile
             )
+
+            // Пытаемся открыть файл напрямую в Minecraft
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mimeType)
+                setPackage("com.mojang.minecraftpe") // Явно указываем пакет Minecraft
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(intent)
+
+            try {
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                // Minecraft не установлен или не может открыть файл
+                kotlinx.coroutines.runBlocking {
+                    Toast.makeText(
+                        context,
+                        "Minecraft не найден. Установите игру, чтобы импортировать мод.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
 
         } catch (e: Exception) {
             e.printStackTrace()
+            kotlinx.coroutines.runBlocking {
+                Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }.start()
 }
