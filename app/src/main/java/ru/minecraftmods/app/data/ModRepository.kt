@@ -33,16 +33,16 @@ object ModRepository {
         gameVersion: String = "",
         sort: String = "downloads"
     ): List<Mod> {
-        // Переводим запрос на английский перед отправкой
-        val englishQuery = TranslatorManager.translateRuToEn(query)
+        // Переводим запрос на английский
+        val englishQuery = TranslatorManager.translateTargetToEn(query)
 
         val rawMods = api.search(englishQuery, source, limit, offset, gameVersion, sort).results
 
-        // Переводим результаты обратно на русский
+        // Переводим результаты на язык пользователя
         return rawMods.map { mod ->
             mod.copy(
-                title = TranslatorManager.translateEnToRu(mod.title),
-                description = mod.description?.let { TranslatorManager.translateEnToRu(it) }
+                title = TranslatorManager.translateEnToTarget(mod.title),
+                description = mod.description?.let { TranslatorManager.translateEnToTarget(it) }
             )
         }
     }
