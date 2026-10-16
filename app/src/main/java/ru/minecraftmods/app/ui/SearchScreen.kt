@@ -5,11 +5,12 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -19,8 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -29,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import ru.minecraftmods.app.data.Mod
@@ -39,7 +40,10 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen() {
+fun SearchScreen(
+    currentLanguage: String,
+    onLanguageChanged: (String) -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -55,13 +59,17 @@ fun SearchScreen() {
     var selectedMod by remember { mutableStateOf<Mod?>(null) }
     var screenshots by remember { mutableStateOf<List<Screenshot>>(emptyList()) }
     var loadingScreenshots by remember { mutableStateOf(false) }
-    var fullscreenImage by remember { mutableStateOf<String?>(null) }
+    var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
+    var downloadingMod by remember { mutableStateOf(false) }
     var offset by remember { mutableStateOf(0) }
     var hasMore by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
 
     if (showSettings) {
-        SettingsScreen(onBack = { showSettings = false })
+        SettingsScreen(
+            onBack = { showSettings = false },
+            onLanguageChanged = { newLang -> onLanguageChanged(newLang) }
+        )
         return
     }
 
@@ -317,7 +325,16 @@ fun SearchScreen() {
                                         }
                                     }
                                 },
-                                onInstall = { downloadAndInstall(context, mod) }
+                                onInstall = {
+                                    if (downloadingMod) return@ModCard
+                                    downloadingMod = true
+                                    downloadAndInstall(
+                                        scope = scope,
+                                        context = context,
+                                        mod = mod,
+                                        onFinish = { downloadingMod = false }
+                                    )
+                                }
                             )
                         }
 
@@ -345,6 +362,27 @@ fun SearchScreen() {
             }
         }
 
+        // Диалог загрузки мода
+        if (downloadingMod) {
+            Dialog(onDismissRequest = {}) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(Modifier.height(16.dp))
+                        Text("Скачивание мода...")
+                    }
+                }
+            }
+        }
+
+        // Окно деталей мода
         selectedMod?.let { mod ->
             ModalBottomSheet(
                 onDismissRequest = {
@@ -358,15 +396,17 @@ fun SearchScreen() {
                     screenshots = screenshots,
                     loadingScreenshots = loadingScreenshots,
                     context = context,
-                    onScreenshotClick = { url -> fullscreenImage = url }
+                    onScreenshotClick = { index -> fullscreenIndex = index }
                 )
             }
         }
 
-        fullscreenImage?.let { url ->
-            FullScreenImageDialog(
-                imageUrl = url,
-                onDismiss = { fullscreenImage = null }
+        // Полноэкранный просмотр скриншотов
+        fullscreenIndex?.let { index ->
+            FullScreenImageGallery(
+                screenshots = screenshots,
+                startIndex = index,
+                onDismiss = { fullscreenIndex = null }
             )
         }
     }
@@ -440,7 +480,7 @@ fun ModDetailsContent(
     screenshots: List<Screenshot>,
     loadingScreenshots: Boolean,
     context: Context,
-    onScreenshotClick: (String) -> Unit
+    onScreenshotClick: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -475,7 +515,8 @@ fun ModDetailsContent(
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(screenshots) { screenshot ->
+                items(screenshots.size) { index ->
+                    val screenshot = screenshots[index]
                     AsyncImage(
                         model = screenshot.url,
                         contentDescription = screenshot.title,
@@ -483,7 +524,7 @@ fun ModDetailsContent(
                             .height(180.dp)
                             .width(280.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { onScreenshotClick(screenshot.url) },
+                            .clickable { onScreenshotClick(index) },
                         contentScale = ContentScale.Crop
                     )
                 }
@@ -506,60 +547,61 @@ fun ModDetailsContent(
         Text("Загрузок: ${mod.downloads}", fontSize = 14.sp)
 
         Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = { downloadAndInstall(context, mod) },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.Download, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Установить мод")
-        }
-
-        Spacer(Modifier.height(24.dp))
     }
 }
 
+/**
+ * Полноэкранная галерея скриншотов с перелистыванием свайпом.
+ */
 @Composable
-fun FullScreenImageDialog(
-    imageUrl: String,
+fun FullScreenImageGallery(
+    screenshots: List<Screenshot>,
+    startIndex: Int,
     onDismiss: () -> Unit
 ) {
-    var scale by remember { mutableStateOf(1f) }
-    var offsetX by remember { mutableStateOf(0f) }
-    var offsetY by remember { mutableStateOf(0f) }
+    if (screenshots.isEmpty()) {
+        onDismiss()
+        return
+    }
+
+    val safeStartIndex = startIndex.coerceIn(0, screenshots.size - 1)
+    val pagerState = rememberPagerState(initialPage = safeStartIndex) { screenshots.size }
 
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(1f, 5f)
-                        if (scale > 1f) {
-                            offsetX += pan.x
-                            offsetY += pan.y
-                        } else {
-                            offsetX = 0f
-                            offsetY = 0f
-                        }
-                    }
-                },
-            contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = null,
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                AsyncImage(
+                    model = screenshots[page].url,
+                    contentDescription = screenshots[page].title,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            // Счётчик страниц
+            Surface(
+                color = Color.Black.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = offsetX,
-                        translationY = offsetY
-                    ),
-                contentScale = ContentScale.Fit
-            )
+                    .align(Alignment.BottomCenter)
+                    .padding(24.dp)
+            ) {
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${screenshots.size}",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
 
             IconButton(
                 onClick = onDismiss,
@@ -578,34 +620,55 @@ fun FullScreenImageDialog(
     }
 }
 
-fun downloadAndInstall(context: Context, mod: Mod) {
-    Thread {
+/**
+ * Скачивает файл мода и открывает его в Minecraft через системный Intent.
+ * Работает через корутины — не блокирует UI и не вылетает.
+ */
+fun downloadAndInstall(
+    scope: kotlinx.coroutines.CoroutineScope,
+    context: Context,
+    mod: Mod,
+    onFinish: () -> Unit
+) {
+    scope.launch {
         try {
-            val files = kotlinx.coroutines.runBlocking {
+            val files = withContext(Dispatchers.IO) {
                 ModRepository.getFiles(mod.id, mod.source)
             }
+
             if (files.isEmpty()) {
-                kotlinx.coroutines.runBlocking {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Файлы мода не найдены", Toast.LENGTH_SHORT).show()
+                    onFinish()
                 }
-                return@Thread
+                return@launch
             }
 
             val file = files.first()
+
+            if (file.url.isBlank()) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "У этого мода нет доступной ссылки для скачивания. Попробуйте другой мод.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    onFinish()
+                }
+                return@launch
+            }
+
             val targetFile = File(context.cacheDir, file.filename)
 
-            val client = OkHttpClient()
-            val request = Request.Builder().url(file.url).build()
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    kotlinx.coroutines.runBlocking {
-                        Toast.makeText(context, "Ошибка скачивания", Toast.LENGTH_SHORT).show()
-                    }
-                    return@Thread
-                }
-                response.body?.byteStream()?.use { input ->
-                    targetFile.outputStream().use { output ->
-                        input.copyTo(output)
+            withContext(Dispatchers.IO) {
+                val client = OkHttpClient()
+                val request = Request.Builder().url(file.url).build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) throw Exception("Ошибка сервера: ${response.code}")
+                    response.body?.byteStream()?.use { input ->
+                        targetFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
                     }
                 }
             }
@@ -632,23 +695,29 @@ fun downloadAndInstall(context: Context, mod: Mod) {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
 
-            try {
-                context.startActivity(intent)
-            } catch (e: Exception) {
-                kotlinx.coroutines.runBlocking {
+            withContext(Dispatchers.Main) {
+                try {
+                    context.startActivity(intent)
+                } catch (e: Exception) {
                     Toast.makeText(
                         context,
-                        "Minecraft не найден. Установите игру для импорта мода.",
+                        "Minecraft не найден или не может открыть файл.\nУстановите игру для импорта мода.",
                         Toast.LENGTH_LONG
                     ).show()
                 }
+                onFinish()
             }
 
         } catch (e: Exception) {
             e.printStackTrace()
-            kotlinx.coroutines.runBlocking {
-                Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    context,
+                    "Ошибка: ${e.message ?: "неизвестная"}",
+                    Toast.LENGTH_LONG
+                ).show()
+                onFinish()
             }
         }
-    }.start()
+    }
 }
