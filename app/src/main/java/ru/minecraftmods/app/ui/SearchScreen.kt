@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -362,7 +363,6 @@ fun SearchScreen(
             }
         }
 
-        // Диалог загрузки мода
         if (downloadingMod) {
             Dialog(onDismissRequest = {}) {
                 Card(
@@ -382,7 +382,6 @@ fun SearchScreen(
             }
         }
 
-        // Окно деталей мода
         selectedMod?.let { mod ->
             ModalBottomSheet(
                 onDismissRequest = {
@@ -395,17 +394,15 @@ fun SearchScreen(
                     mod = mod,
                     screenshots = screenshots,
                     loadingScreenshots = loadingScreenshots,
-                    context = context,
                     onScreenshotClick = { index -> fullscreenIndex = index }
                 )
             }
         }
 
-        // Полноэкранный просмотр скриншотов
-        fullscreenIndex?.let { index ->
+        if (fullscreenIndex != null && screenshots.isNotEmpty()) {
             FullScreenImageGallery(
                 screenshots = screenshots,
-                startIndex = index,
+                startIndex = fullscreenIndex!!,
                 onDismiss = { fullscreenIndex = null }
             )
         }
@@ -479,7 +476,6 @@ fun ModDetailsContent(
     mod: Mod,
     screenshots: List<Screenshot>,
     loadingScreenshots: Boolean,
-    context: Context,
     onScreenshotClick: (Int) -> Unit
 ) {
     Column(
@@ -550,22 +546,17 @@ fun ModDetailsContent(
     }
 }
 
-/**
- * Полноэкранная галерея скриншотов с перелистыванием свайпом.
- */
 @Composable
 fun FullScreenImageGallery(
     screenshots: List<Screenshot>,
     startIndex: Int,
     onDismiss: () -> Unit
 ) {
-    if (screenshots.isEmpty()) {
-        onDismiss()
-        return
-    }
-
     val safeStartIndex = startIndex.coerceIn(0, screenshots.size - 1)
-    val pagerState = rememberPagerState(initialPage = safeStartIndex) { screenshots.size }
+    val pagerState = rememberPagerState(
+        initialPage = safeStartIndex,
+        pageCount = { screenshots.size }
+    )
 
     Dialog(onDismissRequest = onDismiss) {
         Box(
@@ -587,7 +578,6 @@ fun FullScreenImageGallery(
                 )
             }
 
-            // Счётчик страниц
             Surface(
                 color = Color.Black.copy(alpha = 0.6f),
                 shape = RoundedCornerShape(16.dp),
@@ -620,12 +610,8 @@ fun FullScreenImageGallery(
     }
 }
 
-/**
- * Скачивает файл мода и открывает его в Minecraft через системный Intent.
- * Работает через корутины — не блокирует UI и не вылетает.
- */
 fun downloadAndInstall(
-    scope: kotlinx.coroutines.CoroutineScope,
+    scope: CoroutineScope,
     context: Context,
     mod: Mod,
     onFinish: () -> Unit
@@ -650,7 +636,7 @@ fun downloadAndInstall(
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         context,
-                        "У этого мода нет доступной ссылки для скачивания. Попробуйте другой мод.",
+                        "У этого мода нет доступной ссылки для скачивания.",
                         Toast.LENGTH_LONG
                     ).show()
                     onFinish()
@@ -701,7 +687,7 @@ fun downloadAndInstall(
                 } catch (e: Exception) {
                     Toast.makeText(
                         context,
-                        "Minecraft не найден или не может открыть файл.\nУстановите игру для импорта мода.",
+                        "Minecraft не найден или не может открыть файл.",
                         Toast.LENGTH_LONG
                     ).show()
                 }
