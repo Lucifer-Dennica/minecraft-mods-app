@@ -20,7 +20,10 @@ import ru.minecraftmods.app.data.TranslatorManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onLanguageChanged: (String) -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var currentLang by remember { mutableStateOf(LanguagePreferences.getTargetLanguage(context)) }
@@ -58,7 +61,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Модель перевода будет скачана один раз (~30 МБ) и будет работать офлайн.",
+                    "Модель перевода скачается один раз (~30 МБ) и будет работать офлайн.",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -78,6 +81,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                             if (success) {
                                 currentLang = lang.code
                                 statusMessage = "Язык изменён на ${lang.displayName}"
+                                // Моментально применяем смену языка во всём приложении
+                                onLanguageChanged(lang.code)
                             } else {
                                 statusMessage = "Не удалось скачать модель. Проверьте интернет."
                             }
