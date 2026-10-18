@@ -327,14 +327,15 @@ fun SearchScreen(
                                     }
                                 },
                                 onInstall = {
-                                    if (downloadingMod) return@ModCard
-                                    downloadingMod = true
-                                    downloadAndInstall(
-                                        scope = scope,
-                                        context = context,
-                                        mod = mod,
-                                        onFinish = { downloadingMod = false }
-                                    )
+                                    if (!downloadingMod) {
+                                        downloadingMod = true
+                                        downloadAndInstall(
+                                            scope = scope,
+                                            context = context,
+                                            mod = mod,
+                                            onFinish = { downloadingMod = false }
+                                        )
+                                    }
                                 }
                             )
                         }
