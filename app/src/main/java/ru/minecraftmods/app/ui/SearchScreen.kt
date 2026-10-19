@@ -3,6 +3,7 @@ package ru.minecraftmods.app.ui
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -39,7 +40,7 @@ import ru.minecraftmods.app.data.ModRepository
 import ru.minecraftmods.app.data.Screenshot
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SearchScreen(
     currentLanguage: String,
@@ -547,6 +548,7 @@ fun ModDetailsContent(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FullScreenImageGallery(
     screenshots: List<Screenshot>,
