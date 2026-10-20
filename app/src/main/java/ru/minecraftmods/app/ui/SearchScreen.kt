@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +32,7 @@ import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -50,6 +52,10 @@ fun SearchScreen(
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
 
+    // Состояния для экрана загрузки
+    var isInitialLoading by remember { mutableStateOf(true) }
+    var loadProgress by remember { mutableStateOf(0) }
+
     var query by remember { mutableStateOf("") }
     var source by remember { mutableStateOf("all") }
     var sort by remember { mutableStateOf("downloads") }
@@ -67,11 +73,87 @@ fun SearchScreen(
     var hasMore by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
 
+    // Загрузка при старте
+    LaunchedEffect(Unit) {
+        val progressJob = launch {
+            while (loadProgress < 95) {
+                delay(30)
+                loadProgress += 1
+            }
+        }
+
+        try {
+            val initialMods = ModRepository.search("", "all", 20, 0, "", "downloads")
+            mods = initialMods
+        } catch (e: Exception) {
+            statusMessage = "Ошибка загрузки: ${e.message}"
+        }
+
+        progressJob.cancel()
+        loadProgress = 100
+        delay(300)
+        isInitialLoading = false
+    }
+
     if (showSettings) {
         SettingsScreen(
             onBack = { showSettings = false },
             onLanguageChanged = { newLang -> onLanguageChanged(newLang) }
         )
+        return
+    }
+
+    if (isInitialLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Gamepad,
+                    contentDescription = null,
+                    modifier = Modifier.size(80.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    "Загрузка модов...",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(Modifier.height(16.dp))
+                
+                LinearProgressIndicator(
+                    progress = { loadProgress / 100f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surface
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "$loadProgress%",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Spacer(Modifier.height(32.dp))
+                Text(
+                    "Загружаем самую свежую коллекцию модов",
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        }
         return
     }
 
@@ -83,8 +165,8 @@ fun SearchScreen(
 
     val gameVersions = listOf("1.21", "1.20", "1.19", "1.18", "1.17", "1.16")
 
-    fun doSearch() {
-        if (query.isBlank() && gameVersion.isBlank()) return
+    fun doSearch(force: Boolean = false) {
+        if (!force && query.isBlank() && gameVersion.isBlank()) return
         scope.launch {
             if (offset == 0) loading = true else loadingMore = true
             statusMessage = ""
@@ -117,7 +199,7 @@ fun SearchScreen(
         offset = 0
         hasMore = true
         mods = emptyList()
-        doSearch()
+        doSearch(force = true)
     }
 
     ModalNavigationDrawer(
@@ -290,7 +372,7 @@ fun SearchScreen(
                 Button(
                     onClick = { resetAndSearch() },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !loading && (query.isNotBlank() || gameVersion.isNotBlank())
+                    enabled = !loading
                 ) {
                     Text(if (loading) "Поиск..." else "Найти")
                 }
@@ -351,7 +433,7 @@ fun SearchScreen(
                                     Button(
                                         onClick = {
                                             offset += 20
-                                            doSearch()
+                                            doSearch(force = true)
                                         },
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
@@ -368,9 +450,7 @@ fun SearchScreen(
         if (downloadingMod) {
             Dialog(onDismissRequest = {}) {
                 Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
