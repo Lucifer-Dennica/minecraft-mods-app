@@ -1,29 +1,49 @@
 package ru.minecraftmods.app.data
 
+import android.content.Context
+import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 object ModRepository {
 
     private const val BASE_URL = "https://mods-proxy.denis22142qwe.workers.dev/"
+    private var api: ApiService? = null
+    private var isInitialized = false
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
-        })
-        .build()
+    // ЭТА ФУНКЦИЯ ДОЛЖНА БЫТЬ ЗДЕСЬ
+    fun init(context: Context) {
+        if (isInitialized) return
 
-    private val api: ApiService = Retrofit.Builder()
-        .baseUrl(BASE_URL)
-        .client(client)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(ApiService::class.java)
+        val cacheSize = 10L * 1024 * 1024 // 10 MB
+        val cache = Cache(File(context.cacheDir, "http_cache"), cacheSize)
+
+        val client = OkHttpClient.Builder()
+            .cache(cache)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BASIC
+            })
+            .build()
+
+        api = Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ApiService::class.java)
+
+        isInitialized = true
+    }
+
+    private fun getApi(): ApiService {
+        return api ?: throw IllegalStateException("ModRepository не инициализирован. Вызовите init(context) в MainActivity.")
+    }
 
     suspend fun search(
         query: String,
@@ -33,12 +53,9 @@ object ModRepository {
         gameVersion: String = "",
         sort: String = "downloads"
     ): List<Mod> {
-        // Переводим запрос на английский
         val englishQuery = TranslatorManager.translateTargetToEn(query)
+        val rawMods = getApi().search(englishQuery, source, limit, offset, gameVersion, sort).results
 
-        val rawMods = api.search(englishQuery, source, limit, offset, gameVersion, sort).results
-
-        // Переводим результаты на язык пользователя
         return rawMods.map { mod ->
             mod.copy(
                 title = TranslatorManager.translateEnToTarget(mod.title),
@@ -48,10 +65,10 @@ object ModRepository {
     }
 
     suspend fun getFiles(id: String, source: String): List<ModFile> {
-        return api.getFiles(id, source).files
+        return getApi().getFiles(id, source).files
     }
 
     suspend fun getScreenshots(id: String, source: String): List<Screenshot> {
-        return api.getScreenshots(id, source).screenshots
+        return getApi().getScreenshots(id, source).screenshots
     }
 }
