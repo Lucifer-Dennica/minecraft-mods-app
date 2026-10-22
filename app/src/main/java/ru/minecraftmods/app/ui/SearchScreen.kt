@@ -52,7 +52,6 @@ fun SearchScreen(
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
 
-    // Состояния для экрана загрузки
     var isInitialLoading by remember { mutableStateOf(true) }
     var loadProgress by remember { mutableStateOf(0) }
 
@@ -73,7 +72,6 @@ fun SearchScreen(
     var hasMore by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
 
-    // Загрузка при старте
     LaunchedEffect(Unit) {
         val progressJob = launch {
             while (loadProgress < 95) {
@@ -125,7 +123,7 @@ fun SearchScreen(
                     "Загрузка модов...",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = Color.White // <-- Исправлен цвет
                 )
                 Spacer(Modifier.height(16.dp))
                 
@@ -143,14 +141,14 @@ fun SearchScreen(
                 Text(
                     "$loadProgress%",
                     fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    color = Color.LightGray // <-- Исправлен цвет
                 )
                 Spacer(Modifier.height(32.dp))
                 Text(
                     "Загружаем самую свежую коллекцию модов",
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = Color.LightGray // <-- Исправлен цвет
                 )
             }
         }
@@ -476,7 +474,18 @@ fun SearchScreen(
                     mod = mod,
                     screenshots = screenshots,
                     loadingScreenshots = loadingScreenshots,
-                    onScreenshotClick = { index -> fullscreenIndex = index }
+                    onScreenshotClick = { index -> fullscreenIndex = index },
+                    onDownloadClick = {
+                        if (!downloadingMod) {
+                            downloadingMod = true
+                            downloadAndInstall(
+                                scope = scope,
+                                context = context,
+                                mod = mod,
+                                onFinish = { downloadingMod = false }
+                            )
+                        }
+                    }
                 )
             }
         }
@@ -558,7 +567,8 @@ fun ModDetailsContent(
     mod: Mod,
     screenshots: List<Screenshot>,
     loadingScreenshots: Boolean,
-    onScreenshotClick: (Int) -> Unit
+    onScreenshotClick: (Int) -> Unit,
+    onDownloadClick: () -> Unit // <-- ДОБАВЛЕНО
 ) {
     Column(
         modifier = Modifier
@@ -624,6 +634,17 @@ fun ModDetailsContent(
         Spacer(Modifier.height(16.dp))
         Text("Загрузок: ${mod.downloads}", fontSize = 14.sp)
 
+        Spacer(Modifier.height(24.dp))
+        
+        // <-- ДОБАВЛЕНА КНОПКА СКАЧИВАНИЯ
+        Button(
+            onClick = onDownloadClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Download, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Установить мод")
+        }
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -717,9 +738,19 @@ fun downloadAndInstall(
 
             if (file.url.isBlank()) {
                 withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "У этого мода нет ссылки для скачивания.", Toast.LENGTH_LONG).show()
+                    onFinish()
+                }
+                return@launch
+            }
+
+            // ПРОВЕРКА НА JAVA EDITION (.jar)
+            val extension = file.filename.substringAfterLast('.', "").lowercase()
+            if (extension == "jar") {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(
                         context,
-                        "У этого мода нет доступной ссылки для скачивания.",
+                        "Этот мод для ПК-версии (Java Edition).\nОн не подойдет для телефона.",
                         Toast.LENGTH_LONG
                     ).show()
                     onFinish()
@@ -742,7 +773,6 @@ fun downloadAndInstall(
                 }
             }
 
-            val extension = file.filename.substringAfterLast('.', "")
             val mimeType = when (extension) {
                 "mcaddon" -> "application/x-minecraft-addon"
                 "mcpack" -> "application/x-minecraft-pack"
@@ -757,20 +787,21 @@ fun downloadAndInstall(
                 targetFile
             )
 
+            // Убрали setPackage, чтобы Android предложил все совместимые приложения
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mimeType)
-                setPackage("com.mojang.minecraftpe")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
 
             withContext(Dispatchers.Main) {
                 try {
-                    context.startActivity(intent)
+                    // Используем createChooser для безопасности (вдруг у пользователя пиратка или другая сборка)
+                    context.startActivity(Intent.createChooser(intent, "Открыть в Minecraft"))
                 } catch (e: Exception) {
                     Toast.makeText(
                         context,
-                        "Minecraft не найден или не может открыть файл.",
+                        "Не удалось открыть файл. Возможно, Minecraft не установлен.",
                         Toast.LENGTH_LONG
                     ).show()
                 }
