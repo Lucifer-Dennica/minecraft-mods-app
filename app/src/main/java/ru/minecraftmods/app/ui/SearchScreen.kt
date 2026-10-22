@@ -123,10 +123,10 @@ fun SearchScreen(
                     "Загрузка модов...",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White // <-- Исправлен цвет
+                    color = Color.White
                 )
                 Spacer(Modifier.height(16.dp))
-                
+
                 LinearProgressIndicator(
                     progress = { loadProgress / 100f },
                     modifier = Modifier
@@ -136,19 +136,19 @@ fun SearchScreen(
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surface
                 )
-                
+
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "$loadProgress%",
                     fontSize = 14.sp,
-                    color = Color.LightGray // <-- Исправлен цвет
+                    color = Color.LightGray
                 )
                 Spacer(Modifier.height(32.dp))
                 Text(
                     "Загружаем самую свежую коллекцию модов",
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
-                    color = Color.LightGray // <-- Исправлен цвет
+                    color = Color.LightGray
                 )
             }
         }
@@ -568,7 +568,7 @@ fun ModDetailsContent(
     screenshots: List<Screenshot>,
     loadingScreenshots: Boolean,
     onScreenshotClick: (Int) -> Unit,
-    onDownloadClick: () -> Unit // <-- ДОБАВЛЕНО
+    onDownloadClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -636,7 +636,6 @@ fun ModDetailsContent(
 
         Spacer(Modifier.height(24.dp))
         
-        // <-- ДОБАВЛЕНА КНОПКА СКАЧИВАНИЯ
         Button(
             onClick = onDownloadClick,
             modifier = Modifier.fillMaxWidth()
@@ -744,13 +743,13 @@ fun downloadAndInstall(
                 return@launch
             }
 
-            // ПРОВЕРКА НА JAVA EDITION (.jar)
+            // Проверка: разрешаем только мобильные форматы
             val extension = file.filename.substringAfterLast('.', "").lowercase()
-            if (extension == "jar") {
+            if (extension !in listOf("mcaddon", "mcpack", "mcworld", "mctemplate")) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         context,
-                        "Этот мод для ПК-версии (Java Edition).\nОн не подойдет для телефона.",
+                        "Этот файл не предназначен для телефона (Minecraft PE).\nПопробуйте другой мод.",
                         Toast.LENGTH_LONG
                     ).show()
                     onFinish()
@@ -787,7 +786,6 @@ fun downloadAndInstall(
                 targetFile
             )
 
-            // Убрали setPackage, чтобы Android предложил все совместимые приложения
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mimeType)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -796,7 +794,6 @@ fun downloadAndInstall(
 
             withContext(Dispatchers.Main) {
                 try {
-                    // Используем createChooser для безопасности (вдруг у пользователя пиратка или другая сборка)
                     context.startActivity(Intent.createChooser(intent, "Открыть в Minecraft"))
                 } catch (e: Exception) {
                     Toast.makeText(
