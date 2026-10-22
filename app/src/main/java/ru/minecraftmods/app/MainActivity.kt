@@ -10,11 +10,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import ru.minecraftmods.app.data.LanguagePreferences
+import ru.minecraftmods.app.data.ModRepository
 import ru.minecraftmods.app.data.TranslatorManager
 import ru.minecraftmods.app.ui.MinecraftModsTheme
 import ru.minecraftmods.app.ui.SearchScreen
@@ -32,6 +34,8 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
 
                 LaunchedEffect(Unit) {
+                    ModRepository.init(context)
+
                     if (!modelsReady) {
                         scope.launch {
                             val currentLang = LanguagePreferences.getTargetLanguage(context)
@@ -50,12 +54,16 @@ class MainActivity : ComponentActivity() {
                     loading -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator()
+                                CircularProgressIndicator(color = Color(0xFFFFC107))
                                 Spacer(Modifier.height(16.dp))
-                                Text("Загрузка модели перевода...")
+                                Text(
+                                    "Загрузка модели перевода...",
+                                    color = Color.White // <-- Исправлен цвет
+                                )
                                 Spacer(Modifier.height(8.dp))
                                 Text(
                                     "Это нужно только один раз",
+                                    color = Color.LightGray, // <-- Исправлен цвет
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
@@ -65,13 +73,13 @@ class MainActivity : ComponentActivity() {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
                                 error!!,
+                                color = Color.White,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(24.dp)
                             )
                         }
                     }
                     else -> {
-                        // key() пересоздаст SearchScreen при смене языка
                         key(languageKey) {
                             SearchScreen(
                                 currentLanguage = languageKey,
