@@ -15,17 +15,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close // <-- Импорт иконки Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Gamepad
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.* // Здесь уже есть Close, ArrowBack и т.д.
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -439,12 +429,12 @@ fun ModDetailsContent(
                 Text("Автор: ${mod.author ?: "Неизвестно"}", fontSize = 14.sp)
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         if (loadingScreenshots) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (screenshots.isNotEmpty()) {
             Text("Скриншоты", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Spacer(Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(screenshots.size) { index ->
                     AsyncImage(
@@ -454,18 +444,18 @@ fun ModDetailsContent(
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
         Text("Описание", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        Spacer(Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(mod.description ?: "Нет описания", fontSize = 14.sp)
-        Spacer(Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         Button(onClick = onDownloadClick, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Download, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(if (isFromHistory) "Скачать заново" else "Установить мод")
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -489,8 +479,9 @@ fun FullScreenImageGallery(screenshots: List<Screenshot>, startIndex: Int, onDis
 fun YandexBanner(adUnitId: String) {
     AndroidView(
         factory = { context ->
-            // В версии 8.x ID передается прямо в конструктор
-            BannerAdView(context, adUnitId).apply {
+            // Используем стандартный конструктор для SDK 8.5.0
+            BannerAdView(context).apply {
+                setAdUnitId(adUnitId)
                 setAdSize(BannerAdSize.stickySize(context, 320))
                 loadAd(com.yandex.mobile.ads.common.AdRequest.Builder().build())
             }
