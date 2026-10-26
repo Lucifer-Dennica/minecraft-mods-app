@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "ru.minecraftmods.app"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "ru.minecraftmods.app"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
     }
@@ -23,14 +23,27 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
-    packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    
+    kotlinOptions { 
+        jvmTarget = "17" 
+    }
+    
+    buildFeatures { 
+        compose = true 
+    }
+    
+    composeOptions { 
+        kotlinCompilerExtensionVersion = "1.5.14" 
+    }
+    
+    packaging { 
+        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" 
+    }
 }
 
 dependencies {
@@ -61,6 +74,6 @@ dependencies {
     // ML Kit (Офлайн перевод)
     implementation("com.google.mlkit:translate:17.0.3")
     
-    // Реклама Яндекса (обновлено до 8.6.0)
-    implementation("com.yandex.android:mobileads:8.6.0")
+    // Реклама Яндекса (Стабильная версия 8.5.0, не требует compileSdk 35)
+    implementation("com.yandex.android:mobileads:8.5.0")
 }
