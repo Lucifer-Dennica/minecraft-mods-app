@@ -34,6 +34,7 @@ android {
 }
 
 dependencies {
+    // Compose
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
     implementation(composeBom)
 
@@ -48,13 +49,18 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
+    // Сеть и парсинг
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // Загрузка изображений
     implementation("io.coil-kt:coil-compose:2.6.0")
-
-    // === ML Kit для офлайн-перевода ===
+    
+    // ML Kit (Офлайн перевод)
     implementation("com.google.mlkit:translate:17.0.3")
+    
+    // Реклама Яндекса (обновлено до 8.6.0)
+    implementation("com.yandex.android:mobileads:8.6.0")
 }
