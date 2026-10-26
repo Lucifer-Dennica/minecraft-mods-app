@@ -48,7 +48,7 @@ import java.io.File
 fun SearchScreen(
     currentLanguage: String,
     onLanguageChanged: (String) -> Unit,
-    onThemeChanged: (String) -> Unit // <-- ДОБАВЛЕН ПАРАМЕТР ДЛЯ ТЕМЫ
+    onThemeChanged: (String) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -84,7 +84,6 @@ fun SearchScreen(
         }
 
         try {
-            // Загружаем аддоны по умолчанию
             val initialMods = ModRepository.search("", "all", 20, 0, "", "downloads")
             mods = initialMods
         } catch (e: Exception) {
@@ -97,16 +96,15 @@ fun SearchScreen(
         isInitialLoading = false
     }
 
-   if (showSettings) {
+    if (showSettings) {
         SettingsScreen(
             onBack = { showSettings = false },
             onLanguageChanged = { newLang -> onLanguageChanged(newLang) },
-            onThemeChanged = { newTheme -> onThemeChanged(newTheme) } // Передаем дальше
+            onThemeChanged = { newTheme -> onThemeChanged(newTheme) }
         )
         return
     }
 
-    // Экран истории скачиваний
     if (showHistory) {
         HistoryScreen(onBack = { showHistory = false })
         return
@@ -164,7 +162,6 @@ fun SearchScreen(
         return
     }
 
-    // КАТЕГОРИИ ДЛЯ BEDROCK
     val categories = listOf(
         "Мебель", "Оружие", "Броня", "Руды", "Еда",
         "Машины", "Животные", "Магия", "Декор", "Инструменты",
@@ -466,12 +463,19 @@ fun SearchScreen(
     }
 }
 
-// --- Экран Истории Скачиваний ---
+// --- Экран Истории Скачиваний (ОБНОВЛЕН) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var history by remember { mutableStateOf(DownloadHistory.getHistory(context)) }
+
+    // Состояния для просмотра деталей мода из истории
+    var selectedMod by remember { mutableStateOf<Mod?>(null) }
+    var screenshots by remember { mutableStateOf<List<Screenshot>>(emptyList()) }
+    var loadingScreenshots by remember { mutableStateOf(false) }
+    var downloadingMod by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -506,6 +510,20 @@ fun HistoryScreen(onBack: () -> Unit) {
                 items(history) { mod ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            // Открываем детали мода по клику
+                            selectedMod = mod
+                            loadingScreenshots = true
+                            scope.launch {
+                                try {
+                                    screenshots = ModRepository.getScreenshots(mod.id, mod.source)
+                                } catch (e: Exception) {
+                                    screenshots = emptyList()
+                                } finally {
+                                    loadingScreenshots = false
+                                }
+                            }
+                        },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -527,9 +545,54 @@ fun HistoryScreen(onBack: () -> Unit) {
             }
         }
     }
+
+    // Окно с деталями мода
+    selectedMod?.let { mod ->
+        ModalBottomSheet(
+            onDismissRequest = {
+                selectedMod = null
+                screenshots = emptyList()
+            },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            ModDetailsContent(
+                mod = mod,
+                screenshots = screenshots,
+                loadingScreenshots = loadingScreenshots,
+                onScreenshotClick = { /* Здесь можно добавить полноэкранный просмотр, но пока просто оставим */ },
+                onDownloadClick = {
+                    if (!downloadingMod) {
+                        downloadingMod = true
+                        downloadAndInstall(
+                            scope = scope,
+                            context = context,
+                            mod = mod,
+                            onFinish = { downloadingMod = false }
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    // Индикатор загрузки при перекачивании
+    if (downloadingMod) {
+        Dialog(onDismissRequest = {}) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text("Скачивание мода...")
+                }
+            }
+        }
+    }
 }
 
-// --- Вспомогательные Composable функции ---
+// --- Вспомогательные Composable функции (без изменений) ---
 @Composable
 fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
     Card(
