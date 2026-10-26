@@ -96,10 +96,11 @@ fun SearchScreen(
         isInitialLoading = false
     }
 
-    if (showSettings) {
+   if (showSettings) {
         SettingsScreen(
             onBack = { showSettings = false },
-            onLanguageChanged = { newLang -> onLanguageChanged(newLang) }
+            onLanguageChanged = { newLang -> onLanguageChanged(newLang) },
+            onThemeChanged = { newTheme -> onThemeChanged(newTheme) } 
         )
         return
     }
