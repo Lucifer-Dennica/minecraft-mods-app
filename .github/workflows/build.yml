@@ -24,8 +24,15 @@ jobs:
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
+      # ВОТ ЗДЕСЬ МЫ ПЕРЕИМЕНОВЫВАЕМ ФАЙЛ
+      - name: Rename APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/ModChest.apk
+          ls -la dist/
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MinecraftMods-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: ModChest
+          path: dist/ModChest.apk
