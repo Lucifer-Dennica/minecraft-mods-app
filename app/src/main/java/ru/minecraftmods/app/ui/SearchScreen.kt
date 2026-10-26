@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import ru.minecraftmods.app.data.DownloadHistory
 import ru.minecraftmods.app.data.Mod
 import ru.minecraftmods.app.data.ModRepository
 import ru.minecraftmods.app.data.Screenshot
@@ -71,6 +72,7 @@ fun SearchScreen(
     var offset by remember { mutableStateOf(0) }
     var hasMore by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
+    var showHistory by remember { mutableStateOf(false) } // Новое состояние
 
     LaunchedEffect(Unit) {
         val progressJob = launch {
@@ -81,7 +83,7 @@ fun SearchScreen(
         }
 
         try {
-            // ИЗМЕНЕНИЕ ЗДЕСЬ: вместо "" пишем "addon"
+            // Загружаем аддоны по умолчанию
             val initialMods = ModRepository.search("addon", "all", 20, 0, "", "downloads")
             mods = initialMods
         } catch (e: Exception) {
@@ -99,6 +101,12 @@ fun SearchScreen(
             onBack = { showSettings = false },
             onLanguageChanged = { newLang -> onLanguageChanged(newLang) }
         )
+        return
+    }
+
+    // Экран истории скачиваний
+    if (showHistory) {
+        HistoryScreen(onBack = { showHistory = false })
         return
     }
 
@@ -127,7 +135,6 @@ fun SearchScreen(
                     color = Color.White
                 )
                 Spacer(Modifier.height(16.dp))
-
                 LinearProgressIndicator(
                     progress = { loadProgress / 100f },
                     modifier = Modifier
@@ -137,7 +144,6 @@ fun SearchScreen(
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surface
                 )
-
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "$loadProgress%",
@@ -156,10 +162,11 @@ fun SearchScreen(
         return
     }
 
+    // ОБНОВЛЕННЫЕ КАТЕГОРИИ ДЛЯ BEDROCK (телефонов)
     val categories = listOf(
-        "Приключение", "Оптимизация", "Технологии", "Магия", "Мобы",
-        "Снаряжение", "Еда", "Декор", "Транспорт", "Хранение",
-        "Сражения", "Квесты", "Библиотека", "Утилиты", "Реализм", "Мультиплеер"
+        "Мебель", "Оружие", "Броня", "Руды", "Еда",
+        "Машины", "Животные", "Магия", "Декор", "Инструменты",
+        "Биомы", "Структуры"
     )
 
     val gameVersions = listOf("1.21", "1.20", "1.19", "1.18", "1.17", "1.16")
@@ -217,30 +224,6 @@ fun SearchScreen(
                 )
                 Spacer(Modifier.height(16.dp))
 
-                Text("Источник", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = source == "all",
-                        onClick = { source = "all"; resetAndSearch() },
-                        label = { Text("Все") }
-                    )
-                    FilterChip(
-                        selected = source == "modrinth",
-                        onClick = { source = "modrinth"; resetAndSearch() },
-                        label = { Text("Modrinth") }
-                    )
-                    FilterChip(
-                        selected = source == "curseforge",
-                        onClick = { source = "curseforge"; resetAndSearch() },
-                        label = { Text("CurseForge") }
-                    )
-                }
-
-                Spacer(Modifier.height(16.dp))
                 Text("Сортировка", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(
@@ -257,29 +240,6 @@ fun SearchScreen(
                         onClick = { sort = "updated"; resetAndSearch() },
                         label = { Text("По дате") }
                     )
-                }
-
-                Spacer(Modifier.height(16.dp))
-                Text("Версия игры", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
-                Spacer(Modifier.height(8.dp))
-                LazyRow(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    item {
-                        FilterChip(
-                            selected = gameVersion == "",
-                            onClick = { gameVersion = ""; resetAndSearch() },
-                            label = { Text("Любая") }
-                        )
-                    }
-                    items(gameVersions) { version ->
-                        FilterChip(
-                            selected = gameVersion == version,
-                            onClick = { gameVersion = version; resetAndSearch() },
-                            label = { Text(version) }
-                        )
-                    }
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -314,6 +274,20 @@ fun SearchScreen(
 
                 Spacer(Modifier.height(8.dp))
                 HorizontalDivider()
+                
+                // Кнопка ИСТОРИИ
+                NavigationDrawerItem(
+                    label = { Text("Мои загрузки", fontWeight = FontWeight.Bold) },
+                    icon = { Icon(Icons.Default.History, contentDescription = null) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        showHistory = true
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                )
+
+                // Кнопка НАСТРОЕК
                 NavigationDrawerItem(
                     label = { Text("Настройки", fontWeight = FontWeight.Bold) },
                     icon = { Icon(Icons.Default.Settings, contentDescription = null) },
@@ -322,7 +296,7 @@ fun SearchScreen(
                         scope.launch { drawerState.close() }
                         showSettings = true
                     },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                 )
                 Spacer(Modifier.height(16.dp))
             }
@@ -338,8 +312,8 @@ fun SearchScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { showSettings = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Настройки")
+                        IconButton(onClick = { showHistory = true }) {
+                            Icon(Icons.Default.History, contentDescription = "История")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -355,7 +329,6 @@ fun SearchScreen(
                     .padding(horizontal = 12.dp)
             ) {
                 Spacer(Modifier.height(8.dp))
-
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -365,9 +338,7 @@ fun SearchScreen(
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true
                 )
-
                 Spacer(Modifier.height(8.dp))
-
                 Button(
                     onClick = { resetAndSearch() },
                     modifier = Modifier.fillMaxWidth(),
@@ -375,7 +346,6 @@ fun SearchScreen(
                 ) {
                     Text(if (loading) "Поиск..." else "Найти")
                 }
-
                 Spacer(Modifier.height(8.dp))
 
                 if (statusMessage.isNotEmpty()) {
@@ -421,7 +391,6 @@ fun SearchScreen(
                                 }
                             )
                         }
-
                         if (hasMore && mods.isNotEmpty()) {
                             item {
                                 if (loadingMore) {
@@ -448,9 +417,7 @@ fun SearchScreen(
 
         if (downloadingMod) {
             Dialog(onDismissRequest = {}) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -501,6 +468,70 @@ fun SearchScreen(
     }
 }
 
+// --- Экран Истории Скачиваний ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HistoryScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    var history by remember { mutableStateOf(DownloadHistory.getHistory(context)) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Мои загрузки") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        DownloadHistory.clearHistory(context)
+                        history = emptyList()
+                    }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Очистить")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+            )
+        }
+    ) { padding ->
+        if (history.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text("Вы ещё не скачивали моды", color = Color.Gray)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.padding(padding).padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(history) { mod ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (!mod.iconUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = mod.iconUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(mod.title, fontWeight = FontWeight.Bold)
+                                Text("Скачано ранее", fontSize = 12.sp, color = Color.Gray)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Вспомогательные Composable функции (без изменений) ---
 @Composable
 fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
     Card(
@@ -526,16 +557,9 @@ fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
                     Icon(Icons.Default.Extension, contentDescription = null)
                 }
             }
-
             Spacer(Modifier.width(12.dp))
-
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = mod.title,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text(text = mod.title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = mod.description ?: "",
@@ -544,20 +568,9 @@ fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "${mod.source} • ${mod.downloads} загрузок",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
             }
-
             IconButton(onClick = onInstall) {
-                Icon(
-                    Icons.Default.Download,
-                    contentDescription = "Установить",
-                    tint = MaterialTheme.colorScheme.primary
-                )
+                Icon(Icons.Default.Download, contentDescription = "Установить", tint = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -571,11 +584,7 @@ fun ModDetailsContent(
     onScreenshotClick: (Int) -> Unit,
     onDownloadClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (!mod.iconUrl.isNullOrBlank()) {
                 AsyncImage(
@@ -588,59 +597,31 @@ fun ModDetailsContent(
             Column {
                 Text(mod.title, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text("Автор: ${mod.author ?: "Неизвестно"}", fontSize = 14.sp)
-                Text("Источник: ${mod.source}", fontSize = 12.sp)
             }
         }
-
         Spacer(Modifier.height(16.dp))
-
         if (loadingScreenshots) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (screenshots.isNotEmpty()) {
             Text("Скриншоты", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Spacer(Modifier.height(8.dp))
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(screenshots.size) { index ->
-                    val screenshot = screenshots[index]
                     AsyncImage(
-                        model = screenshot.url,
-                        contentDescription = screenshot.title,
-                        modifier = Modifier
-                            .height(180.dp)
-                            .width(280.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onScreenshotClick(index) },
+                        model = screenshots[index].url,
+                        contentDescription = null,
+                        modifier = Modifier.height(180.dp).width(280.dp).clip(RoundedCornerShape(8.dp)).clickable { onScreenshotClick(index) },
                         contentScale = ContentScale.Crop
                     )
                 }
             }
             Spacer(Modifier.height(16.dp))
         }
-
         Text("Описание", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Spacer(Modifier.height(8.dp))
         Text(mod.description ?: "Нет описания", fontSize = 14.sp)
-
-        if (mod.gameVersions.isNotEmpty()) {
-            Spacer(Modifier.height(16.dp))
-            Text("Поддерживаемые версии", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(mod.gameVersions.joinToString(", "), fontSize = 14.sp)
-        }
-
-        Spacer(Modifier.height(16.dp))
-        Text("Загрузок: ${mod.downloads}", fontSize = 14.sp)
-
         Spacer(Modifier.height(24.dp))
-        
-        Button(
-            onClick = onDownloadClick,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Button(onClick = onDownloadClick, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Download, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text("Установить мод")
@@ -651,124 +632,50 @@ fun ModDetailsContent(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FullScreenImageGallery(
-    screenshots: List<Screenshot>,
-    startIndex: Int,
-    onDismiss: () -> Unit
-) {
-    val safeStartIndex = startIndex.coerceIn(0, screenshots.size - 1)
-    val pagerState = rememberPagerState(
-        initialPage = safeStartIndex,
-        pageCount = { screenshots.size }
-    )
-
+fun FullScreenImageGallery(screenshots: List<Screenshot>, startIndex: Int, onDismiss: () -> Unit) {
+    val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { screenshots.size })
     Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                 AsyncImage(
                     model = screenshots[page].url,
-                    contentDescription = screenshots[page].title,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize().padding(8.dp),
                     contentScale = ContentScale.Fit
                 )
             }
-
-            Surface(
-                color = Color.Black.copy(alpha = 0.6f),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(24.dp)
-            ) {
-                Text(
-                    text = "${pagerState.currentPage + 1} / ${screenshots.size}",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Закрыть",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
+            IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)) {
+                Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White, modifier = Modifier.size(32.dp))
             }
         }
     }
 }
 
-fun downloadAndInstall(
-    scope: CoroutineScope,
-    context: Context,
-    mod: Mod,
-    onFinish: () -> Unit
-) {
+// --- Скачивание с удалением кэша ---
+fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
     scope.launch {
         try {
-            val files = withContext(Dispatchers.IO) {
-                ModRepository.getFiles(mod.id, mod.source)
-            }
-
+            val files = withContext(Dispatchers.IO) { ModRepository.getFiles(mod.id, mod.source) }
             if (files.isEmpty()) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Файлы мода не найдены", Toast.LENGTH_SHORT).show()
-                    onFinish()
-                }
+                withContext(Dispatchers.Main) { Toast.makeText(context, "Файлы не найдены", Toast.LENGTH_SHORT).show(); onFinish() }
                 return@launch
             }
-
             val file = files.first()
-
-            if (file.url.isBlank()) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "У этого мода нет ссылки для скачивания.", Toast.LENGTH_LONG).show()
-                    onFinish()
-                }
-                return@launch
-            }
-
-            // Проверка: разрешаем только мобильные форматы
             val extension = file.filename.substringAfterLast('.', "").lowercase()
+            
             if (extension !in listOf("mcaddon", "mcpack", "mcworld", "mctemplate")) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        context,
-                        "Этот файл не предназначен для телефона (Minecraft PE).\nПопробуйте другой мод.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    onFinish()
-                }
+                withContext(Dispatchers.Main) { Toast.makeText(context, "Этот файл не для телефона.", Toast.LENGTH_LONG).show(); onFinish() }
                 return@launch
             }
 
             val targetFile = File(context.cacheDir, file.filename)
-
             withContext(Dispatchers.IO) {
                 val client = OkHttpClient()
                 val request = Request.Builder().url(file.url).build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) throw Exception("Ошибка сервера: ${response.code}")
                     response.body?.byteStream()?.use { input ->
-                        targetFile.outputStream().use { output ->
-                            input.copyTo(output)
-                        }
+                        targetFile.outputStream().use { output -> input.copyTo(output) }
                     }
                 }
             }
@@ -782,11 +689,8 @@ fun downloadAndInstall(
             }
 
             val uri = androidx.core.content.FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                targetFile
+                context, "${context.packageName}.fileprovider", targetFile
             )
-
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mimeType)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -795,27 +699,24 @@ fun downloadAndInstall(
 
             withContext(Dispatchers.Main) {
                 try {
+                    // Сохраняем в историю перед открытием
+                    DownloadHistory.addMod(context, mod)
+                    
                     context.startActivity(Intent.createChooser(intent, "Открыть в Minecraft"))
+                    
+                    // Удаляем файл из кэша, чтобы не забивать память
+                    // (Minecraft уже скопировал его к себе)
+                    scope.launch(Dispatchers.IO) {
+                        kotlinx.coroutines.delay(5000) // Ждем 5 секунд, чтобы игра успела прочитать
+                        if (targetFile.exists()) targetFile.delete()
+                    }
                 } catch (e: Exception) {
-                    Toast.makeText(
-                        context,
-                        "Не удалось открыть файл. Возможно, Minecraft не установлен.",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(context, "Minecraft не установлен.", Toast.LENGTH_LONG).show()
                 }
                 onFinish()
             }
-
         } catch (e: Exception) {
-            e.printStackTrace()
-            withContext(Dispatchers.Main) {
-                Toast.makeText(
-                    context,
-                    "Ошибка: ${e.message ?: "неизвестная"}",
-                    Toast.LENGTH_LONG
-                ).show()
-                onFinish()
-            }
+            withContext(Dispatchers.Main) { Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show(); onFinish() }
         }
     }
 }
