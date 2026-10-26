@@ -16,17 +16,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ru.minecraftmods.app.data.LanguagePreferences
+import ru.minecraftmods.app.data.ThemePreferences
 import ru.minecraftmods.app.data.TranslatorManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
-    onLanguageChanged: (String) -> Unit
+    onLanguageChanged: (String) -> Unit,
+    onThemeChanged: (String) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    
     var currentLang by remember { mutableStateOf(LanguagePreferences.getTargetLanguage(context)) }
+    var currentTheme by remember { mutableStateOf(ThemePreferences.getTheme(context)) }
     var downloading by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
 
@@ -52,8 +56,52 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // --- БЛОК ТЕМЫ ОФОРМЛЕНИЯ ---
             item {
                 Spacer(Modifier.height(8.dp))
+                Text(
+                    "Тема оформления",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+                Spacer(Modifier.height(8.dp))
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = currentTheme == ThemePreferences.THEME_DARK,
+                        onClick = { 
+                            ThemePreferences.setTheme(context, ThemePreferences.THEME_DARK)
+                            currentTheme = ThemePreferences.THEME_DARK
+                            onThemeChanged(ThemePreferences.THEME_DARK) 
+                        },
+                        label = { Text("Темная") }
+                    )
+                    FilterChip(
+                        selected = currentTheme == ThemePreferences.THEME_LIGHT,
+                        onClick = { 
+                            ThemePreferences.setTheme(context, ThemePreferences.THEME_LIGHT)
+                            currentTheme = ThemePreferences.THEME_LIGHT
+                            onThemeChanged(ThemePreferences.THEME_LIGHT) 
+                        },
+                        label = { Text("Светлая") }
+                    )
+                    FilterChip(
+                        selected = currentTheme == ThemePreferences.THEME_AMOLED,
+                        onClick = { 
+                            ThemePreferences.setTheme(context, ThemePreferences.THEME_AMOLED)
+                            currentTheme = ThemePreferences.THEME_AMOLED
+                            onThemeChanged(ThemePreferences.THEME_AMOLED) 
+                        },
+                        label = { Text("AMOLED") }
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(16.dp))
+            }
+
+            // --- БЛОК ЯЗЫКА ---
+            item {
                 Text(
                     "Язык приложения",
                     fontWeight = FontWeight.Bold,
@@ -81,7 +129,6 @@ fun SettingsScreen(
                             if (success) {
                                 currentLang = lang.code
                                 statusMessage = "Язык изменён на ${lang.displayName}"
-                                // Моментально применяем смену языка во всём приложении
                                 onLanguageChanged(lang.code)
                             } else {
                                 statusMessage = "Не удалось скачать модель. Проверьте интернет."
@@ -126,6 +173,7 @@ fun SettingsScreen(
                 }
             }
 
+            // --- СТАТУС И ИНДИКАТОР ЗАГРУЗКИ ---
             item {
                 Spacer(Modifier.height(16.dp))
                 if (downloading) {
