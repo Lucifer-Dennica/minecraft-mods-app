@@ -7,18 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -27,6 +16,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close // <-- Импорт иконки Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Extension
@@ -36,36 +26,8 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Dialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -115,20 +77,16 @@ fun SearchScreen(
     var loading by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
-    
     var selectedMod by remember { mutableStateOf<Mod?>(null) }
     var screenshots by remember { mutableStateOf<List<Screenshot>>(emptyList()) }
     var loadingScreenshots by remember { mutableStateOf(false) }
     var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
-    
     var downloadingMod by remember { mutableStateOf(false) }
     var offset by remember { mutableStateOf(0) }
     var hasMore by remember { mutableStateOf(true) }
-    
     var showSettings by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
 
-    // Обработка системной кнопки "Назад"
     BackHandler(enabled = showSettings || showHistory || drawerState.isOpen || selectedMod != null) {
         when {
             selectedMod != null -> selectedMod = null
@@ -140,10 +98,7 @@ fun SearchScreen(
 
     LaunchedEffect(Unit) {
         val progressJob = launch {
-            while (loadProgress < 95) {
-                delay(30)
-                loadProgress += 1
-            }
+            while (loadProgress < 95) { delay(30); loadProgress += 1 }
         }
         try {
             val initialMods = ModRepository.search("", "all", 20, 0, "", "downloads")
@@ -172,62 +127,28 @@ fun SearchScreen(
     }
 
     if (isInitialLoading) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Gamepad,
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Загрузка модов...",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                Icon(Icons.Default.Gamepad, contentDescription = null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(24.dp))
+                Text("Загрузка модов...", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Spacer(Modifier.height(16.dp))
                 LinearProgressIndicator(
                     progress = { loadProgress / 100f },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
+                    modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surface
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "$loadProgress%",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                Text(
-                    text = "Загружаем самую свежую коллекцию модов",
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+                Spacer(Modifier.height(8.dp))
+                Text("$loadProgress%", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Spacer(Modifier.height(32.dp))
+                Text("Загружаем самую свежую коллекцию модов", fontSize = 14.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
             }
         }
         return
     }
 
-    val categories = listOf(
-        "Мебель", "Оружие", "Броня", "Руды", "Еда",
-        "Машины", "Животные", "Магия", "Декор", "Инструменты",
-        "Биомы", "Структуры"
-    )
+    val categories = listOf("Мебель", "Оружие", "Броня", "Руды", "Еда", "Машины", "Животные", "Магия", "Декор", "Инструменты", "Биомы", "Структуры")
 
     fun doSearch(force: Boolean = false) {
         if (!force && query.isBlank()) return
@@ -235,19 +156,8 @@ fun SearchScreen(
             if (offset == 0) loading = true else loadingMore = true
             statusMessage = ""
             try {
-                val result = ModRepository.search(
-                    query = query.trim(),
-                    source = "all",
-                    limit = 20,
-                    offset = offset,
-                    gameVersion = gameVersion,
-                    sort = sort
-                )
-                if (offset == 0) {
-                    mods = result
-                } else {
-                    mods = mods + result
-                }
+                val result = ModRepository.search(query.trim(), "all", 20, offset, gameVersion, sort)
+                if (offset == 0) mods = result else mods = mods + result
                 hasMore = result.size >= 20
                 if (mods.isEmpty()) statusMessage = "Ничего не найдено"
             } catch (e: Exception) {
@@ -260,105 +170,42 @@ fun SearchScreen(
     }
 
     fun resetAndSearch() {
-        offset = 0
-        hasMore = true
-        mods = emptyList()
-        doSearch(force = true)
+        offset = 0; hasMore = true; mods = emptyList(); doSearch(force = true)
     }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(
-                modifier = Modifier.width(300.dp),
-                drawerContainerColor = MaterialTheme.colorScheme.surface
-            ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Фильтры",
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Сортировка",
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = sort == "downloads",
-                        onClick = { sort = "downloads"; resetAndSearch() },
-                        label = { Text("По загрузкам") }
-                    )
-                    FilterChip(
-                        selected = sort == "updated",
-                        onClick = { sort = "updated"; resetAndSearch() },
-                        label = { Text("По дате") }
-                    )
+            ModalDrawerSheet(modifier = Modifier.width(300.dp), drawerContainerColor = MaterialTheme.colorScheme.surface) {
+                Spacer(Modifier.height(16.dp))
+                Text("Фильтры", modifier = Modifier.padding(horizontal = 16.dp), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Spacer(Modifier.height(16.dp))
+                Text("Сортировка", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = sort == "downloads", onClick = { sort = "downloads"; resetAndSearch() }, label = { Text("По загрузкам") })
+                    FilterChip(selected = sort == "updated", onClick = { sort = "updated"; resetAndSearch() }, label = { Text("По дате") })
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
                 HorizontalDivider()
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Категории",
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 16.dp)
-                ) {
+                Spacer(Modifier.height(16.dp))
+                Text("Категории", modifier = Modifier.padding(horizontal = 16.dp), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 16.dp)) {
                     items(categories) { cat ->
                         NavigationDrawerItem(
                             label = { Text(cat) },
                             selected = query.equals(cat, ignoreCase = true),
-                            onClick = {
-                                query = cat
-                                scope.launch { drawerState.close() }
-                                resetAndSearch()
-                            },
+                            onClick = { query = cat; scope.launch { drawerState.close() }; resetAndSearch() },
                             modifier = Modifier.padding(vertical = 2.dp)
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
                 HorizontalDivider()
-                
-                NavigationDrawerItem(
-                    label = { Text("Мои загрузки", fontWeight = FontWeight.Bold) },
-                    icon = { Icon(Icons.Default.History, contentDescription = null) },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        showHistory = true
-                    },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
-                )
-
-                NavigationDrawerItem(
-                    label = { Text("Настройки", fontWeight = FontWeight.Bold) },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        showSettings = true
-                    },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+                NavigationDrawerItem(label = { Text("Мои загрузки", fontWeight = FontWeight.Bold) }, icon = { Icon(Icons.Default.History, null) }, selected = false, onClick = { scope.launch { drawerState.close() }; showHistory = true }, modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp))
+                NavigationDrawerItem(label = { Text("Настройки", fontWeight = FontWeight.Bold) }, icon = { Icon(Icons.Default.Settings, null) }, selected = false, onClick = { scope.launch { drawerState.close() }; showSettings = true }, modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp))
+                Spacer(Modifier.height(16.dp))
             }
         }
     ) {
@@ -366,94 +213,48 @@ fun SearchScreen(
             topBar = {
                 TopAppBar(
                     title = { Text("ModChest", fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Меню")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { showHistory = true }) {
-                            Icon(Icons.Default.History, contentDescription = "История")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
+                    navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, "Меню") } },
+                    actions = { IconButton(onClick = { showHistory = true }) { Icon(Icons.Default.History, "История") } },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
                 )
             },
             bottomBar = {
                 YandexBanner(adUnitId = "demo-banner-yandex")
             }
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp)
-            ) {
-                Spacer(modifier = Modifier.height(8.dp))
-                
+            Column(modifier = Modifier.padding(padding).fillMaxSize().padding(horizontal = 12.dp)) {
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = { Text("Поиск модов...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
+                    value = query, onValueChange = { query = it }, placeholder = { Text("Поиск модов...") },
+                    leadingIcon = { Icon(Icons.Default.Search, null) }, modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp), singleLine = true
                 )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Button(
-                    onClick = { resetAndSearch() },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !loading
-                ) {
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = { resetAndSearch() }, modifier = Modifier.fillMaxWidth(), enabled = !loading) {
                     Text(if (loading) "Поиск..." else "Найти")
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-
+                Spacer(Modifier.height(8.dp))
                 if (statusMessage.isNotEmpty()) {
                     Text(statusMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(Modifier.height(8.dp))
                 }
-
                 if (loading && offset == 0) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 } else {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 16.dp)
-                    ) {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
                         items(mods) { mod ->
                             ModCard(
                                 mod = mod,
                                 onClick = {
-                                    selectedMod = mod
-                                    loadingScreenshots = true
+                                    selectedMod = mod; loadingScreenshots = true
                                     scope.launch {
-                                        try {
-                                            screenshots = ModRepository.getScreenshots(mod.id, mod.source)
-                                        } catch (e: Exception) {
-                                            screenshots = emptyList()
-                                        } finally {
-                                            loadingScreenshots = false
-                                        }
+                                        try { screenshots = ModRepository.getScreenshots(mod.id, mod.source) } catch (e: Exception) { screenshots = emptyList() } finally { loadingScreenshots = false }
                                     }
                                 },
                                 onInstall = {
                                     if (!downloadingMod) {
                                         downloadingMod = true
-                                        downloadAndInstall(
-                                            scope = scope,
-                                            context = context,
-                                            mod = mod,
-                                            onFinish = { downloadingMod = false }
-                                        )
+                                        downloadAndInstall(scope, context, mod, onFinish = { downloadingMod = false })
                                     }
                                 }
                             )
@@ -461,19 +262,9 @@ fun SearchScreen(
                         if (hasMore && mods.isNotEmpty()) {
                             item {
                                 if (loadingMore) {
-                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator()
-                                    }
+                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                                 } else {
-                                    Button(
-                                        onClick = {
-                                            offset += 20
-                                            doSearch(force = true)
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text("Загрузить ещё")
-                                    }
+                                    Button(onClick = { offset += 20; doSearch(force = true) }, modifier = Modifier.fillMaxWidth()) { Text("Загрузить ещё") }
                                 }
                             }
                         }
@@ -485,40 +276,22 @@ fun SearchScreen(
         if (downloadingMod) {
             androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Скачивание мода...")
+                    Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(); Spacer(Modifier.height(16.dp)); Text("Скачивание мода...")
                     }
                 }
             }
         }
 
         selectedMod?.let { mod ->
-            ModalBottomSheet(
-                onDismissRequest = {
-                    selectedMod = null
-                    screenshots = emptyList()
-                },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-            ) {
+            ModalBottomSheet(onDismissRequest = { selectedMod = null; screenshots = emptyList() }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
                 ModDetailsContent(
-                    mod = mod,
-                    screenshots = screenshots,
-                    loadingScreenshots = loadingScreenshots,
+                    mod = mod, screenshots = screenshots, loadingScreenshots = loadingScreenshots,
                     onScreenshotClick = { index -> fullscreenIndex = index },
                     onDownloadClick = {
                         if (!downloadingMod) {
                             downloadingMod = true
-                            downloadAndInstall(
-                                scope = scope,
-                                context = context,
-                                mod = mod,
-                                onFinish = { downloadingMod = false }
-                            )
+                            downloadAndInstall(scope, context, mod, onFinish = { downloadingMod = false })
                         }
                     }
                 )
@@ -526,11 +299,7 @@ fun SearchScreen(
         }
 
         if (fullscreenIndex != null && screenshots.isNotEmpty()) {
-            FullScreenImageGallery(
-                screenshots = screenshots,
-                startIndex = fullscreenIndex!!,
-                onDismiss = { fullscreenIndex = null }
-            )
+            FullScreenImageGallery(screenshots = screenshots, startIndex = fullscreenIndex!!, onDismiss = { fullscreenIndex = null })
         }
     }
 }
@@ -547,93 +316,46 @@ fun HistoryScreen(onBack: () -> Unit) {
     var loadingScreenshots by remember { mutableStateOf(false) }
     var downloadingMod by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = selectedMod != null) {
-        selectedMod = null
-    }
+    BackHandler(enabled = selectedMod != null) { selectedMod = null }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Мои загрузки") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        DownloadHistory.clearHistory(context)
-                        history = emptyList()
-                    }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Очистить")
-                    }
-                },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Назад") } },
+                actions = { IconButton(onClick = { DownloadHistory.clearHistory(context); history = emptyList() }) { Icon(Icons.Default.Delete, "Очистить") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
         if (history.isEmpty()) {
-            Box(
-                Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text("Вы ещё не скачивали моды", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.padding(padding).padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            LazyColumn(modifier = Modifier.padding(padding).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(history) { mod ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
-                            selectedMod = mod
-                            loadingScreenshots = true
+                            selectedMod = mod; loadingScreenshots = true
                             scope.launch {
-                                try {
-                                    screenshots = ModRepository.getScreenshots(mod.id, mod.source)
-                                } catch (e: Exception) {
-                                    screenshots = emptyList()
-                                } finally {
-                                    loadingScreenshots = false
-                                }
+                                try { screenshots = ModRepository.getScreenshots(mod.id, mod.source) } catch (e: Exception) { screenshots = emptyList() } finally { loadingScreenshots = false }
                             }
                         },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (!mod.iconUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = mod.iconUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
-                                )
+                                AsyncImage(model = mod.iconUrl, contentDescription = null, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)))
                             } else {
-                                Box(
-                                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.Extension, contentDescription = null)
-                                }
+                                Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Extension, null) }
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = mod.title,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Text(text = mod.title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "Скачано ранее",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Text(text = "Скачано ранее", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                             }
                             IconButton(onClick = {
                                 if (!downloadingMod) {
@@ -641,11 +363,7 @@ fun HistoryScreen(onBack: () -> Unit) {
                                     downloadAndInstall(scope, context, mod, onFinish = { downloadingMod = false })
                                 }
                             }) {
-                                Icon(
-                                    Icons.Default.Refresh,
-                                    contentDescription = "Скачать заново",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                                Icon(Icons.Default.Refresh, contentDescription = "Скачать заново", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -655,17 +373,9 @@ fun HistoryScreen(onBack: () -> Unit) {
     }
 
     selectedMod?.let { mod ->
-        ModalBottomSheet(
-            onDismissRequest = {
-                selectedMod = null
-                screenshots = emptyList()
-            },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ) {
+        ModalBottomSheet(onDismissRequest = { selectedMod = null; screenshots = emptyList() }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
             ModDetailsContent(
-                mod = mod,
-                screenshots = screenshots,
-                loadingScreenshots = loadingScreenshots,
+                mod = mod, screenshots = screenshots, loadingScreenshots = loadingScreenshots,
                 onScreenshotClick = { },
                 onDownloadClick = {
                     if (!downloadingMod) {
@@ -681,13 +391,8 @@ fun HistoryScreen(onBack: () -> Unit) {
     if (downloadingMod) {
         androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Скачивание мода...")
+                Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(); Spacer(Modifier.height(16.dp)); Text("Скачивание мода...")
                 }
             }
         }
@@ -696,53 +401,20 @@ fun HistoryScreen(onBack: () -> Unit) {
 
 @Composable
 fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    Card(modifier = Modifier.fillMaxWidth(), onClick = onClick, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (!mod.iconUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = mod.iconUrl,
-                    contentDescription = null,
-                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
-                )
+                AsyncImage(model = mod.iconUrl, contentDescription = null, modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)))
             } else {
-                Box(
-                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Extension, contentDescription = null)
-                }
+                Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Extension, null) }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = mod.title,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text(text = mod.title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = mod.description ?: "",
-                    fontSize = 12.sp,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
+                Text(text = mod.description ?: "", fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             }
-            IconButton(onClick = onInstall) {
-                Icon(
-                    Icons.Default.Download,
-                    contentDescription = "Установить",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+            IconButton(onClick = onInstall) { Icon(Icons.Default.Download, contentDescription = "Установить", tint = MaterialTheme.colorScheme.primary) }
         }
     }
 }
@@ -756,18 +428,10 @@ fun ModDetailsContent(
     onDownloadClick: () -> Unit,
     isFromHistory: Boolean = false
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (!mod.iconUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = mod.iconUrl,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp))
-                )
+                AsyncImage(model = mod.iconUrl, contentDescription = null, modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
@@ -775,84 +439,47 @@ fun ModDetailsContent(
                 Text("Автор: ${mod.author ?: "Неизвестно"}", fontSize = 14.sp)
             }
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
+        Spacer(Modifier.height(16.dp))
         if (loadingScreenshots) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (screenshots.isNotEmpty()) {
             Text("Скриншоты", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(screenshots.size) { index ->
                     AsyncImage(
-                        model = screenshots[index].url,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .height(180.dp)
-                            .width(280.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onScreenshotClick(index) },
+                        model = screenshots[index].url, contentDescription = null,
+                        modifier = Modifier.height(180.dp).width(280.dp).clip(RoundedCornerShape(8.dp)).clickable { onScreenshotClick(index) },
                         contentScale = ContentScale.Crop
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
         }
-        
         Text("Описание", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
         Text(mod.description ?: "Нет описания", fontSize = 14.sp)
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
+        Spacer(Modifier.height(24.dp))
         Button(onClick = onDownloadClick, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Download, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(Modifier.width(8.dp))
             Text(if (isFromHistory) "Скачать заново" else "Установить мод")
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(Modifier.height(24.dp))
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FullScreenImageGallery(
-    screenshots: List<Screenshot>,
-    startIndex: Int,
-    onDismiss: () -> Unit
-) {
+fun FullScreenImageGallery(screenshots: List<Screenshot>, startIndex: Int, onDismiss: () -> Unit) {
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { screenshots.size })
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                AsyncImage(
-                    model = screenshots[page].url,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
-                    contentScale = ContentScale.Fit
-                )
+                AsyncImage(model = screenshots[page].url, contentDescription = null, modifier = Modifier.fillMaxSize().padding(8.dp), contentScale = ContentScale.Fit)
             }
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Закрыть",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
+            IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)) {
+                Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White, modifier = Modifier.size(32.dp))
             }
         }
     }
@@ -862,8 +489,8 @@ fun FullScreenImageGallery(
 fun YandexBanner(adUnitId: String) {
     AndroidView(
         factory = { context ->
-            BannerAdView(context).apply {
-                setAdUnitId(adUnitId)
+            // В версии 8.x ID передается прямо в конструктор
+            BannerAdView(context, adUnitId).apply {
                 setAdSize(BannerAdSize.stickySize(context, 320))
                 loadAd(com.yandex.mobile.ads.common.AdRequest.Builder().build())
             }
@@ -875,32 +502,19 @@ fun YandexBanner(adUnitId: String) {
     )
 }
 
-fun downloadAndInstall(
-    scope: CoroutineScope,
-    context: Context,
-    mod: Mod,
-    onFinish: () -> Unit
-) {
+fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
     scope.launch {
         try {
-            val files = withContext(Dispatchers.IO) {
-                ModRepository.getFiles(mod.id, mod.source)
-            }
+            val files = withContext(Dispatchers.IO) { ModRepository.getFiles(mod.id, mod.source) }
             if (files.isEmpty()) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Файлы не найдены", Toast.LENGTH_SHORT).show()
-                    onFinish()
-                }
+                withContext(Dispatchers.Main) { Toast.makeText(context, "Файлы не найдены", Toast.LENGTH_SHORT).show(); onFinish() }
                 return@launch
             }
             val file = files.first()
             val extension = file.filename.substringAfterLast('.', "").lowercase()
             
             if (extension !in listOf("mcaddon", "mcpack", "mcworld", "mctemplate")) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Этот файл не для телефона.", Toast.LENGTH_LONG).show()
-                    onFinish()
-                }
+                withContext(Dispatchers.Main) { Toast.makeText(context, "Этот файл не для телефона.", Toast.LENGTH_LONG).show(); onFinish() }
                 return@launch
             }
 
@@ -924,9 +538,7 @@ fun downloadAndInstall(
                 else -> "application/octet-stream"
             }
 
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                context, "${context.packageName}.fileprovider", targetFile
-            )
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", targetFile)
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mimeType)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -939,7 +551,7 @@ fun downloadAndInstall(
                     context.startActivity(Intent.createChooser(intent, "Открыть в Minecraft"))
                     
                     scope.launch(Dispatchers.IO) {
-                        delay(5000)
+                        kotlinx.coroutines.delay(5000)
                         if (targetFile.exists()) targetFile.delete()
                     }
                 } catch (e: Exception) {
@@ -948,10 +560,7 @@ fun downloadAndInstall(
                 onFinish()
             }
         } catch (e: Exception) {
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
-                onFinish()
-            }
+            withContext(Dispatchers.Main) { Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show(); onFinish() }
         }
     }
 }
