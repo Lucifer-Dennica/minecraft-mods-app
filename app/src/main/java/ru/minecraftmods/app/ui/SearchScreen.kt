@@ -3,10 +3,22 @@ package ru.minecraftmods.app.ui
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -14,9 +26,46 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Gamepad
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Dialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,8 +77,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import com.yandex.mobile.ads.banner.BannerAdSize
+import com.yandex.mobile.ads.banner.BannerAdView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -52,28 +103,40 @@ fun SearchScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val drawerState = rememberDrawerState(androidx.compose.material3.DrawerValue.Closed)
 
     var isInitialLoading by remember { mutableStateOf(true) }
     var loadProgress by remember { mutableStateOf(0) }
 
     var query by remember { mutableStateOf("") }
-    var source by remember { mutableStateOf("all") }
     var sort by remember { mutableStateOf("downloads") }
     var gameVersion by remember { mutableStateOf("") }
     var mods by remember { mutableStateOf<List<Mod>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
+    
     var selectedMod by remember { mutableStateOf<Mod?>(null) }
     var screenshots by remember { mutableStateOf<List<Screenshot>>(emptyList()) }
     var loadingScreenshots by remember { mutableStateOf(false) }
     var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
+    
     var downloadingMod by remember { mutableStateOf(false) }
     var offset by remember { mutableStateOf(0) }
     var hasMore by remember { mutableStateOf(true) }
+    
     var showSettings by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
+
+    // Обработка системной кнопки "Назад"
+    BackHandler(enabled = showSettings || showHistory || drawerState.isOpen || selectedMod != null) {
+        when {
+            selectedMod != null -> selectedMod = null
+            showSettings -> showSettings = false
+            showHistory -> showHistory = false
+            drawerState.isOpen -> scope.launch { drawerState.close() }
+        }
+    }
 
     LaunchedEffect(Unit) {
         val progressJob = launch {
@@ -82,14 +145,12 @@ fun SearchScreen(
                 loadProgress += 1
             }
         }
-
         try {
             val initialMods = ModRepository.search("", "all", 20, 0, "", "downloads")
             mods = initialMods
         } catch (e: Exception) {
             statusMessage = "Ошибка загрузки: ${e.message}"
         }
-
         progressJob.cancel()
         loadProgress = 100
         delay(300)
@@ -122,19 +183,19 @@ fun SearchScreen(
                 modifier = Modifier.padding(32.dp)
             ) {
                 Icon(
-                    Icons.Default.Gamepad,
+                    imageVector = Icons.Default.Gamepad,
                     contentDescription = null,
                     modifier = Modifier.size(80.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
-                Spacer(Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    "Загрузка модов...",
+                    text = "Загрузка модов...",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 LinearProgressIndicator(
                     progress = { loadProgress / 100f },
                     modifier = Modifier
@@ -144,15 +205,15 @@ fun SearchScreen(
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surface
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "$loadProgress%",
+                    text = "$loadProgress%",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
-                Spacer(Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
                 Text(
-                    "Загружаем самую свежую коллекцию модов",
+                    text = "Загружаем самую свежую коллекцию модов",
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -176,7 +237,7 @@ fun SearchScreen(
             try {
                 val result = ModRepository.search(
                     query = query.trim(),
-                    source = source,
+                    source = "all",
                     limit = 20,
                     offset = offset,
                     gameVersion = gameVersion,
@@ -212,17 +273,21 @@ fun SearchScreen(
                 modifier = Modifier.width(300.dp),
                 drawerContainerColor = MaterialTheme.colorScheme.surface
             ) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Фильтры",
+                    text = "Фильтры",
                     modifier = Modifier.padding(horizontal = 16.dp),
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Сортировка", modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp)
-                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Сортировка",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -239,17 +304,17 @@ fun SearchScreen(
                     )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider()
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    "Категории",
+                    text = "Категории",
                     modifier = Modifier.padding(horizontal = 16.dp),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 LazyColumn(
                     modifier = Modifier.weight(1f),
@@ -269,7 +334,7 @@ fun SearchScreen(
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider()
                 
                 NavigationDrawerItem(
@@ -293,7 +358,7 @@ fun SearchScreen(
                     },
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     ) {
@@ -315,6 +380,9 @@ fun SearchScreen(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
+            },
+            bottomBar = {
+                YandexBanner(adUnitId = "demo-banner-yandex")
             }
         ) { padding ->
             Column(
@@ -323,7 +391,8 @@ fun SearchScreen(
                     .fillMaxSize()
                     .padding(horizontal = 12.dp)
             ) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -333,7 +402,9 @@ fun SearchScreen(
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true
                 )
-                Spacer(Modifier.height(8.dp))
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
                 Button(
                     onClick = { resetAndSearch() },
                     modifier = Modifier.fillMaxWidth(),
@@ -341,11 +412,12 @@ fun SearchScreen(
                 ) {
                     Text(if (loading) "Поиск..." else "Найти")
                 }
-                Spacer(Modifier.height(8.dp))
+                
+                Spacer(modifier = Modifier.height(8.dp))
 
                 if (statusMessage.isNotEmpty()) {
                     Text(statusMessage, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
                 if (loading && offset == 0) {
@@ -411,14 +483,14 @@ fun SearchScreen(
         }
 
         if (downloadingMod) {
-            Dialog(onDismissRequest = {}) {
+            androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                     Column(
                         modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator()
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text("Скачивание мода...")
                     }
                 }
@@ -463,7 +535,6 @@ fun SearchScreen(
     }
 }
 
-// --- Экран Истории Скачиваний (ОБНОВЛЕН) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(onBack: () -> Unit) {
@@ -471,11 +542,14 @@ fun HistoryScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var history by remember { mutableStateOf(DownloadHistory.getHistory(context)) }
 
-    // Состояния для просмотра деталей мода из истории
     var selectedMod by remember { mutableStateOf<Mod?>(null) }
     var screenshots by remember { mutableStateOf<List<Screenshot>>(emptyList()) }
     var loadingScreenshots by remember { mutableStateOf(false) }
     var downloadingMod by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = selectedMod != null) {
+        selectedMod = null
+    }
 
     Scaffold(
         topBar = {
@@ -499,8 +573,11 @@ fun HistoryScreen(onBack: () -> Unit) {
         }
     ) { padding ->
         if (history.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("Вы ещё не скачивали моды", color = Color.Gray)
+            Box(
+                Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Вы ещё не скачивали моды", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
             }
         } else {
             LazyColumn(
@@ -511,7 +588,6 @@ fun HistoryScreen(onBack: () -> Unit) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
-                            // Открываем детали мода по клику
                             selectedMod = mod
                             loadingScreenshots = true
                             scope.launch {
@@ -526,18 +602,50 @@ fun HistoryScreen(onBack: () -> Unit) {
                         },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                     ) {
-                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             if (!mod.iconUrl.isNullOrBlank()) {
                                 AsyncImage(
                                     model = mod.iconUrl,
                                     contentDescription = null,
-                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
+                                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Extension, contentDescription = null)
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = mod.title,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Скачано ранее",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(mod.title, fontWeight = FontWeight.Bold)
-                                Text("Скачано ранее", fontSize = 12.sp, color = Color.Gray)
+                            IconButton(onClick = {
+                                if (!downloadingMod) {
+                                    downloadingMod = true
+                                    downloadAndInstall(scope, context, mod, onFinish = { downloadingMod = false })
+                                }
+                            }) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Скачать заново",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
                     }
@@ -546,7 +654,6 @@ fun HistoryScreen(onBack: () -> Unit) {
         }
     }
 
-    // Окно с деталями мода
     selectedMod?.let { mod ->
         ModalBottomSheet(
             onDismissRequest = {
@@ -559,32 +666,27 @@ fun HistoryScreen(onBack: () -> Unit) {
                 mod = mod,
                 screenshots = screenshots,
                 loadingScreenshots = loadingScreenshots,
-                onScreenshotClick = { /* Здесь можно добавить полноэкранный просмотр, но пока просто оставим */ },
+                onScreenshotClick = { },
                 onDownloadClick = {
                     if (!downloadingMod) {
                         downloadingMod = true
-                        downloadAndInstall(
-                            scope = scope,
-                            context = context,
-                            mod = mod,
-                            onFinish = { downloadingMod = false }
-                        )
+                        downloadAndInstall(scope, context, mod, onFinish = { downloadingMod = false })
                     }
-                }
+                },
+                isFromHistory = true
             )
         }
     }
 
-    // Индикатор загрузки при перекачивании
     if (downloadingMod) {
-        Dialog(onDismissRequest = {}) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     CircularProgressIndicator()
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text("Скачивание мода...")
                 }
             }
@@ -592,7 +694,6 @@ fun HistoryScreen(onBack: () -> Unit) {
     }
 }
 
-// --- Вспомогательные Composable функции (без изменений) ---
 @Composable
 fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
     Card(
@@ -618,10 +719,15 @@ fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
                     Icon(Icons.Default.Extension, contentDescription = null)
                 }
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = mod.title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = mod.title,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = mod.description ?: "",
                     fontSize = 12.sp,
@@ -631,7 +737,11 @@ fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
                 )
             }
             IconButton(onClick = onInstall) {
-                Icon(Icons.Default.Download, contentDescription = "Установить", tint = MaterialTheme.colorScheme.primary)
+                Icon(
+                    Icons.Default.Download,
+                    contentDescription = "Установить",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -643,9 +753,14 @@ fun ModDetailsContent(
     screenshots: List<Screenshot>,
     loadingScreenshots: Boolean,
     onScreenshotClick: (Int) -> Unit,
-    onDownloadClick: () -> Unit
+    onDownloadClick: () -> Unit,
+    isFromHistory: Boolean = false
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (!mod.iconUrl.isNullOrBlank()) {
                 AsyncImage(
@@ -654,78 +769,138 @@ fun ModDetailsContent(
                     modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp))
                 )
             }
-            Spacer(Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(mod.title, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text("Автор: ${mod.author ?: "Неизвестно"}", fontSize = 14.sp)
             }
         }
-        Spacer(Modifier.height(16.dp))
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
         if (loadingScreenshots) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         } else if (screenshots.isNotEmpty()) {
             Text("Скриншоты", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Spacer(Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(screenshots.size) { index ->
                     AsyncImage(
                         model = screenshots[index].url,
                         contentDescription = null,
-                        modifier = Modifier.height(180.dp).width(280.dp).clip(RoundedCornerShape(8.dp)).clickable { onScreenshotClick(index) },
+                        modifier = Modifier
+                            .height(180.dp)
+                            .width(280.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onScreenshotClick(index) },
                         contentScale = ContentScale.Crop
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
+        
         Text("Описание", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        Spacer(Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(mod.description ?: "Нет описания", fontSize = 14.sp)
-        Spacer(Modifier.height(24.dp))
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
         Button(onClick = onDownloadClick, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Download, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Установить мод")
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(if (isFromHistory) "Скачать заново" else "Установить мод")
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FullScreenImageGallery(screenshots: List<Screenshot>, startIndex: Int, onDismiss: () -> Unit) {
+fun FullScreenImageGallery(
+    screenshots: List<Screenshot>,
+    startIndex: Int,
+    onDismiss: () -> Unit
+) {
     val pagerState = rememberPagerState(initialPage = startIndex, pageCount = { screenshots.size })
-    Dialog(onDismissRequest = onDismiss) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                 AsyncImage(
                     model = screenshots[page].url,
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize().padding(8.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
                     contentScale = ContentScale.Fit
                 )
             }
-            IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)) {
-                Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = Color.White, modifier = Modifier.size(32.dp))
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Закрыть",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
             }
         }
     }
 }
 
-// --- Скачивание с удалением кэша ---
-fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
+@Composable
+fun YandexBanner(adUnitId: String) {
+    AndroidView(
+        factory = { context ->
+            BannerAdView(context).apply {
+                setAdUnitId(adUnitId)
+                setAdSize(BannerAdSize.stickySize(context, 320))
+                loadAd(com.yandex.mobile.ads.common.AdRequest.Builder().build())
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .background(MaterialTheme.colorScheme.surface)
+    )
+}
+
+fun downloadAndInstall(
+    scope: CoroutineScope,
+    context: Context,
+    mod: Mod,
+    onFinish: () -> Unit
+) {
     scope.launch {
         try {
-            val files = withContext(Dispatchers.IO) { ModRepository.getFiles(mod.id, mod.source) }
+            val files = withContext(Dispatchers.IO) {
+                ModRepository.getFiles(mod.id, mod.source)
+            }
             if (files.isEmpty()) {
-                withContext(Dispatchers.Main) { Toast.makeText(context, "Файлы не найдены", Toast.LENGTH_SHORT).show(); onFinish() }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Файлы не найдены", Toast.LENGTH_SHORT).show()
+                    onFinish()
+                }
                 return@launch
             }
             val file = files.first()
             val extension = file.filename.substringAfterLast('.', "").lowercase()
             
             if (extension !in listOf("mcaddon", "mcpack", "mcworld", "mctemplate")) {
-                withContext(Dispatchers.Main) { Toast.makeText(context, "Этот файл не для телефона.", Toast.LENGTH_LONG).show(); onFinish() }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Этот файл не для телефона.", Toast.LENGTH_LONG).show()
+                    onFinish()
+                }
                 return@launch
             }
 
@@ -764,7 +939,7 @@ fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFini
                     context.startActivity(Intent.createChooser(intent, "Открыть в Minecraft"))
                     
                     scope.launch(Dispatchers.IO) {
-                        kotlinx.coroutines.delay(5000)
+                        delay(5000)
                         if (targetFile.exists()) targetFile.delete()
                     }
                 } catch (e: Exception) {
@@ -773,7 +948,10 @@ fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFini
                 onFinish()
             }
         } catch (e: Exception) {
-            withContext(Dispatchers.Main) { Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show(); onFinish() }
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
+                onFinish()
+            }
         }
     }
 }
