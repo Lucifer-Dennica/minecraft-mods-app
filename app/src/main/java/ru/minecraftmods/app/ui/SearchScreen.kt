@@ -81,7 +81,8 @@ fun SearchScreen(
         }
 
         try {
-            val initialMods = ModRepository.search("", "all", 20, 0, "", "downloads")
+            // ИЗМЕНЕНИЕ ЗДЕСЬ: вместо "" пишем "addon"
+            val initialMods = ModRepository.search("addon", "all", 20, 0, "", "downloads")
             mods = initialMods
         } catch (e: Exception) {
             statusMessage = "Ошибка загрузки: ${e.message}"
