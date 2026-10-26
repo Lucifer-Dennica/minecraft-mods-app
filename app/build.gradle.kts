@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "ru.minecraftmods.app"
-    compileSdk = 34
+    compileSdk = 35 // <-- Было 34
 
     defaultConfig {
         applicationId = "ru.minecraftmods.app"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35 // <-- Было 34
         versionCode = 1
         versionName = "1.0.0"
     }
@@ -47,7 +47,6 @@ android {
 }
 
 dependencies {
-    // Compose
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
     implementation(composeBom)
 
@@ -62,18 +61,15 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    // Сеть и парсинг
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Загрузка изображений
     implementation("io.coil-kt:coil-compose:2.6.0")
     
-    // ML Kit (Офлайн перевод)
     implementation("com.google.mlkit:translate:17.0.3")
     
-    // Реклама Яндекса (Стабильная версия 8.5.0, не требует compileSdk 35)
+    // Оставляем версию 8.5.0 (или можешь поставить 8.6.0)
     implementation("com.yandex.android:mobileads:8.5.0")
 }
