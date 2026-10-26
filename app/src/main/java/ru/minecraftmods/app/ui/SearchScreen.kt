@@ -47,7 +47,8 @@ import java.io.File
 @Composable
 fun SearchScreen(
     currentLanguage: String,
-    onLanguageChanged: (String) -> Unit
+    onLanguageChanged: (String) -> Unit,
+    onThemeChanged: (String) -> Unit // <-- ДОБАВЛЕН ПАРАМЕТР ДЛЯ ТЕМЫ
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -72,7 +73,7 @@ fun SearchScreen(
     var offset by remember { mutableStateOf(0) }
     var hasMore by remember { mutableStateOf(true) }
     var showSettings by remember { mutableStateOf(false) }
-    var showHistory by remember { mutableStateOf(false) } // Новое состояние
+    var showHistory by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val progressJob = launch {
@@ -84,7 +85,7 @@ fun SearchScreen(
 
         try {
             // Загружаем аддоны по умолчанию
-            val initialMods = ModRepository.search("addon", "all", 20, 0, "", "downloads")
+            val initialMods = ModRepository.search("", "all", 20, 0, "", "downloads")
             mods = initialMods
         } catch (e: Exception) {
             statusMessage = "Ошибка загрузки: ${e.message}"
@@ -100,7 +101,7 @@ fun SearchScreen(
         SettingsScreen(
             onBack = { showSettings = false },
             onLanguageChanged = { newLang -> onLanguageChanged(newLang) },
-            onThemeChanged = { newTheme -> onThemeChanged(newTheme) } 
+            onThemeChanged = { newTheme -> onThemeChanged(newTheme) } // Передаем дальше
         )
         return
     }
@@ -133,7 +134,7 @@ fun SearchScreen(
                     "Загрузка модов...",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(Modifier.height(16.dp))
                 LinearProgressIndicator(
@@ -149,31 +150,29 @@ fun SearchScreen(
                 Text(
                     "$loadProgress%",
                     fontSize = 14.sp,
-                    color = Color.LightGray
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
                 Spacer(Modifier.height(32.dp))
                 Text(
                     "Загружаем самую свежую коллекцию модов",
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
-                    color = Color.LightGray
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
         }
         return
     }
 
-    // ОБНОВЛЕННЫЕ КАТЕГОРИИ ДЛЯ BEDROCK (телефонов)
+    // КАТЕГОРИИ ДЛЯ BEDROCK
     val categories = listOf(
         "Мебель", "Оружие", "Броня", "Руды", "Еда",
         "Машины", "Животные", "Магия", "Декор", "Инструменты",
         "Биомы", "Структуры"
     )
 
-    val gameVersions = listOf("1.21", "1.20", "1.19", "1.18", "1.17", "1.16")
-
     fun doSearch(force: Boolean = false) {
-        if (!force && query.isBlank() && gameVersion.isBlank()) return
+        if (!force && query.isBlank()) return
         scope.launch {
             if (offset == 0) loading = true else loadingMore = true
             statusMessage = ""
@@ -276,7 +275,6 @@ fun SearchScreen(
                 Spacer(Modifier.height(8.dp))
                 HorizontalDivider()
                 
-                // Кнопка ИСТОРИИ
                 NavigationDrawerItem(
                     label = { Text("Мои загрузки", fontWeight = FontWeight.Bold) },
                     icon = { Icon(Icons.Default.History, contentDescription = null) },
@@ -288,7 +286,6 @@ fun SearchScreen(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
                 )
 
-                // Кнопка НАСТРОЕК
                 NavigationDrawerItem(
                     label = { Text("Настройки", fontWeight = FontWeight.Bold) },
                     icon = { Icon(Icons.Default.Settings, contentDescription = null) },
@@ -306,7 +303,7 @@ fun SearchScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Моды для Minecraft", fontWeight = FontWeight.Bold) },
+                    title = { Text("ModChest", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Default.Menu, contentDescription = "Меню")
@@ -532,7 +529,7 @@ fun HistoryScreen(onBack: () -> Unit) {
     }
 }
 
-// --- Вспомогательные Composable функции (без изменений) ---
+// --- Вспомогательные Composable функции ---
 @Composable
 fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
     Card(
@@ -700,15 +697,11 @@ fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFini
 
             withContext(Dispatchers.Main) {
                 try {
-                    // Сохраняем в историю перед открытием
                     DownloadHistory.addMod(context, mod)
-                    
                     context.startActivity(Intent.createChooser(intent, "Открыть в Minecraft"))
                     
-                    // Удаляем файл из кэша, чтобы не забивать память
-                    // (Minecraft уже скопировал его к себе)
                     scope.launch(Dispatchers.IO) {
-                        kotlinx.coroutines.delay(5000) // Ждем 5 секунд, чтобы игра успела прочитать
+                        kotlinx.coroutines.delay(5000)
                         if (targetFile.exists()) targetFile.delete()
                     }
                 } catch (e: Exception) {
