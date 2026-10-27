@@ -69,7 +69,5 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     
     implementation("com.google.mlkit:translate:17.0.3")
-    
-    // Оставляем версию 8.5.0 (или можешь поставить 8.6.0)
-    implementation("com.yandex.android:mobileads:8.5.0")
+
 }
