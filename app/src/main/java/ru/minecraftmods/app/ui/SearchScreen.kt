@@ -29,11 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
-import com.yandex.mobile.ads.banner.BannerAdSize
-import com.yandex.mobile.ads.banner.BannerAdView
-import com.yandex.mobile.ads.common.AdRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -208,9 +204,6 @@ fun SearchScreen(
                     actions = { IconButton(onClick = { showHistory = true }) { Icon(Icons.Default.History, "История") } },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
                 )
-            },
-            bottomBar = {
-                YandexBanner(adUnitId = "demo-banner-yandex")
             }
         ) { padding ->
             Column(modifier = Modifier.padding(padding).fillMaxSize().padding(horizontal = 12.dp)) {
@@ -474,24 +467,6 @@ fun FullScreenImageGallery(screenshots: List<Screenshot>, startIndex: Int, onDis
             }
         }
     }
-}
-
-@Composable
-fun YandexBanner(adUnitId: String) {
-    AndroidView(
-        factory = { context ->
-            BannerAdView(context).apply {
-                // Самая стабильная настройка размера, которая работает во всех версиях SDK
-                setAdSize(BannerAdSize.fixedSize(context, 320, 50))
-                // adUnitId передается в AdRequest
-                loadAd(AdRequest.Builder(adUnitId).build())
-            }
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .background(MaterialTheme.colorScheme.surface)
-    )
 }
 
 fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
