@@ -33,6 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
 import com.yandex.mobile.ads.banner.BannerAdSize
 import com.yandex.mobile.ads.banner.BannerAdView
+import com.yandex.mobile.ads.common.AdRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -479,10 +480,11 @@ fun FullScreenImageGallery(screenshots: List<Screenshot>, startIndex: Int, onDis
 fun YandexBanner(adUnitId: String) {
     AndroidView(
         factory = { context ->
-            // Исправлено для SDK 8.x: adUnitId в конструкторе, sticky -> fixed/inline
-            BannerAdView(context, adUnitId).apply {
-                setAdSize(BannerAdSize.inline(context, 320, 50))
-                loadAd(com.yandex.mobile.ads.common.AdRequest.Builder().build())
+            BannerAdView(context).apply {
+                // Используем inlineSize вместо stickySize для SDK 8.x
+                setAdSize(BannerAdSize.inlineSize(context, 320, 50))
+                // adUnitId передается в AdRequest
+                loadAd(AdRequest.Builder(adUnitId).build())
             }
         },
         modifier = Modifier
