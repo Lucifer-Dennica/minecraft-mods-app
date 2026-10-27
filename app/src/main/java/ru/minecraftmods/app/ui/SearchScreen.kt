@@ -481,9 +481,9 @@ fun YandexBanner(adUnitId: String) {
     AndroidView(
         factory = { context ->
             BannerAdView(context).apply {
-                // Пробуем новый метод, который пришел на смену stickySize
-                setAdSize(BannerAdSize.sticky320x50(context))
-                // ID рекламы теперь передается в AdRequest
+                // Самая стабильная настройка размера, которая работает во всех версиях SDK
+                setAdSize(BannerAdSize.fixedSize(context, 320, 50))
+                // adUnitId передается в AdRequest
                 loadAd(AdRequest.Builder(adUnitId).build())
             }
         },
