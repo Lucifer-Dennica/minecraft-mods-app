@@ -15,7 +15,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.* // Здесь уже есть Close, ArrowBack и т.д.
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -479,10 +479,9 @@ fun FullScreenImageGallery(screenshots: List<Screenshot>, startIndex: Int, onDis
 fun YandexBanner(adUnitId: String) {
     AndroidView(
         factory = { context ->
-            // Используем стандартный конструктор для SDK 8.5.0
-            BannerAdView(context).apply {
-                setAdUnitId(adUnitId)
-                setAdSize(BannerAdSize.stickySize(context, 320))
+            // Исправлено для SDK 8.x: adUnitId в конструкторе, sticky -> fixed/inline
+            BannerAdView(context, adUnitId).apply {
+                setAdSize(BannerAdSize.inline(context, 320, 50))
                 loadAd(com.yandex.mobile.ads.common.AdRequest.Builder().build())
             }
         },
