@@ -25,11 +25,12 @@ object SettingsPreferences {
         // Если не сохранено, пытаемся определить версию Minecraft
         return try {
             val pInfo = context.packageManager.getPackageInfo("com.mojang.minecraftpe", 0)
-            val fullVersion = pInfo.versionName // Например, "1.21.0.3"
+            // Безопасно обрабатываем возможный null от versionName
+            val fullVersion = pInfo.versionName ?: "1.21" 
             // Берем только первые две цифры (1.21)
             fullVersion.split(".").take(2).joinToString(".")
         } catch (e: Exception) {
-            "1.21" // По умолчанию
+            "1.21" // По умолчанию, если игра не найдена
         }
     }
 
