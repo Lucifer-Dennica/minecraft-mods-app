@@ -15,7 +15,8 @@ data class Mod(
     @SerializedName("downloads") val downloads: Long = 0,
     @SerializedName("author") val author: String? = null,
     @SerializedName("page_url") val pageUrl: String? = null,
-    @SerializedName("game_versions") val gameVersions: List<String> = emptyList()
+    @SerializedName("game_versions") val gameVersions: List<String> = emptyList(),
+    @SerializedName("version") var version: String? = null // <-- Добавлено
 )
 
 data class FilesResponse(
