@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import ru.minecraftmods.app.data.LanguagePreferences
+import ru.minecraftmods.app.data.SettingsPreferences
 import ru.minecraftmods.app.data.ThemePreferences
 import ru.minecraftmods.app.data.TranslatorManager
 
@@ -31,91 +32,84 @@ fun SettingsScreen(
     
     var currentLang by remember { mutableStateOf(LanguagePreferences.getTargetLanguage(context)) }
     var currentTheme by remember { mutableStateOf(ThemePreferences.getTheme(context)) }
+    var autoDelete by remember { mutableStateOf(SettingsPreferences.isAutoDeleteEnabled(context)) }
+    var gameVersion by remember { mutableStateOf(SettingsPreferences.getGameVersion(context)) }
+    
     var downloading by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("") }
+
+    val availableVersions = listOf("1.21", "1.20", "1.19", "1.18", "1.17", "1.16")
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Настройки") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Назад") } },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(padding).fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- БЛОК ТЕМЫ ОФОРМЛЕНИЯ ---
+            // ТЕМА
             item {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    "Тема оформления",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
-                )
+                Text("Тема оформления", fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Spacer(Modifier.height(8.dp))
-                
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = currentTheme == ThemePreferences.THEME_DARK,
-                        onClick = { 
-                            ThemePreferences.setTheme(context, ThemePreferences.THEME_DARK)
-                            currentTheme = ThemePreferences.THEME_DARK
-                            onThemeChanged(ThemePreferences.THEME_DARK) 
-                        },
-                        label = { Text("Темная") }
-                    )
-                    FilterChip(
-                        selected = currentTheme == ThemePreferences.THEME_LIGHT,
-                        onClick = { 
-                            ThemePreferences.setTheme(context, ThemePreferences.THEME_LIGHT)
-                            currentTheme = ThemePreferences.THEME_LIGHT
-                            onThemeChanged(ThemePreferences.THEME_LIGHT) 
-                        },
-                        label = { Text("Светлая") }
-                    )
-                    FilterChip(
-                        selected = currentTheme == ThemePreferences.THEME_AMOLED,
-                        onClick = { 
-                            ThemePreferences.setTheme(context, ThemePreferences.THEME_AMOLED)
-                            currentTheme = ThemePreferences.THEME_AMOLED
-                            onThemeChanged(ThemePreferences.THEME_AMOLED) 
-                        },
-                        label = { Text("AMOLED") }
+                    FilterChip(selected = currentTheme == ThemePreferences.THEME_DARK, onClick = { ThemePreferences.setTheme(context, ThemePreferences.THEME_DARK); currentTheme = ThemePreferences.THEME_DARK; onThemeChanged(ThemePreferences.THEME_DARK) }, label = { Text("Темная") })
+                    FilterChip(selected = currentTheme == ThemePreferences.THEME_LIGHT, onClick = { ThemePreferences.setTheme(context, ThemePreferences.THEME_LIGHT); currentTheme = ThemePreferences.THEME_LIGHT; onThemeChanged(ThemePreferences.THEME_LIGHT) }, label = { Text("Светлая") })
+                    FilterChip(selected = currentTheme == ThemePreferences.THEME_AMOLED, onClick = { ThemePreferences.setTheme(context, ThemePreferences.THEME_AMOLED); currentTheme = ThemePreferences.THEME_AMOLED; onThemeChanged(ThemePreferences.THEME_AMOLED) }, label = { Text("AMOLED") })
+                }
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            }
+
+            // ВЕРСИЯ ИГРЫ
+            item {
+                Text("Версия Minecraft", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text("Влияет на совместимость модов", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    availableVersions.forEach { version ->
+                        FilterChip(
+                            selected = gameVersion == version,
+                            onClick = { SettingsPreferences.setGameVersion(context, version); gameVersion = version },
+                            label = { Text(version) }
+                        )
+                    }
+                }
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            }
+
+            // АВТОУДАЛЕНИЕ
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Автоудаление модов", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("Удалять файл после установки в игру", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
+                    Switch(
+                        checked = autoDelete,
+                        onCheckedChange = { 
+                            SettingsPreferences.setAutoDeleteEnabled(context, it)
+                            autoDelete = it 
+                        }
                     )
                 }
-                Spacer(Modifier.height(16.dp))
-                HorizontalDivider()
-                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
             }
 
-            // --- БЛОК ЯЗЫКА ---
+            // ЯЗЫК
             item {
-                Text(
-                    "Язык приложения",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Модель перевода скачается один раз (~30 МБ) и будет работать офлайн.",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-                Spacer(Modifier.height(16.dp))
+                Text("Язык приложения", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Spacer(Modifier.height(8.dp))
             }
-
             items(TranslatorManager.SUPPORTED_LANGUAGES) { lang ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -131,63 +125,30 @@ fun SettingsScreen(
                                 statusMessage = "Язык изменён на ${lang.displayName}"
                                 onLanguageChanged(lang.code)
                             } else {
-                                statusMessage = "Не удалось скачать модель. Проверьте интернет."
+                                statusMessage = "Ошибка загрузки. Проверьте интернет."
                             }
                             downloading = false
                         }
                     },
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (lang.code == currentLang)
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                        else MaterialTheme.colorScheme.surface
-                    )
+                    colors = CardDefaults.cardColors(containerColor = if (lang.code == currentLang) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(lang.flag, fontSize = 28.sp)
-                        Spacer(Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                lang.displayName,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 16.sp
-                            )
-                            Text(
-                                lang.code.uppercase(),
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
+                            Text(lang.displayName, fontWeight = FontWeight.Medium, fontSize = 16.sp)
+                            Text(lang.code.uppercase(), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                         }
-                        if (lang.code == currentLang) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                        if (lang.code == currentLang) Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
 
-            // --- СТАТУС И ИНДИКАТОР ЗАГРУЗКИ ---
             item {
-                Spacer(Modifier.height(16.dp))
-                if (downloading) {
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
+                if (downloading) Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 if (statusMessage.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        statusMessage,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(statusMessage, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                 }
                 Spacer(Modifier.height(32.dp))
             }
