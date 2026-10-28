@@ -10,25 +10,20 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 object ModRepository {
-
     private const val BASE_URL = "https://mods-proxy.denis22142qwe.workers.dev/"
     private var api: ApiService? = null
     private var isInitialized = false
 
-    // ЭТА ФУНКЦИЯ ДОЛЖНА БЫТЬ ЗДЕСЬ
     fun init(context: Context) {
         if (isInitialized) return
-
-        val cacheSize = 10L * 1024 * 1024 // 10 MB
+        val cacheSize = 10L * 1024 * 1024
         val cache = Cache(File(context.cacheDir, "http_cache"), cacheSize)
 
         val client = OkHttpClient.Builder()
             .cache(cache)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BASIC
-            })
+            .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
             .build()
 
         api = Retrofit.Builder()
@@ -37,13 +32,10 @@ object ModRepository {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ApiService::class.java)
-
         isInitialized = true
     }
 
-    private fun getApi(): ApiService {
-        return api ?: throw IllegalStateException("ModRepository не инициализирован. Вызовите init(context) в MainActivity.")
-    }
+    private fun getApi(): ApiService = api ?: throw IllegalStateException("ModRepository не инициализирован.")
 
     suspend fun search(
         query: String,
