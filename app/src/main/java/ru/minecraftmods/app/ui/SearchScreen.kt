@@ -41,6 +41,7 @@ import ru.minecraftmods.app.data.DownloadHistory
 import ru.minecraftmods.app.data.Mod
 import ru.minecraftmods.app.data.ModRepository
 import ru.minecraftmods.app.data.Screenshot
+import ru.minecraftmods.app.data.SettingsPreferences
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -59,7 +60,7 @@ fun SearchScreen(
 
     var query by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf("downloads") }
-    var gameVersion by remember { mutableStateOf("") }
+    var gameVersion by remember { mutableStateOf(SettingsPreferences.getGameVersion(context)) } // Берем сохраненную версию
     var mods by remember { mutableStateOf<List<Mod>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
@@ -88,7 +89,8 @@ fun SearchScreen(
             while (loadProgress < 95) { delay(30); loadProgress += 1 }
         }
         try {
-            val initialMods = ModRepository.search("", "all", 20, 0, "", "downloads")
+            // Передаем версию игры при первом запросе
+            val initialMods = ModRepository.search("", "all", 20, 0, gameVersion, "downloads")
             mods = initialMods
         } catch (e: Exception) {
             statusMessage = "Ошибка загрузки: ${e.message}"
@@ -129,7 +131,7 @@ fun SearchScreen(
                 Spacer(Modifier.height(8.dp))
                 Text("$loadProgress%", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 Spacer(Modifier.height(32.dp))
-                Text("Загружаем самую свежую коллекцию модов", fontSize = 14.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                Text("Загружаем коллекцию модов для $gameVersion", fontSize = 14.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
             }
         }
         return
@@ -146,7 +148,7 @@ fun SearchScreen(
                 val result = ModRepository.search(query.trim(), "all", 20, offset, gameVersion, sort)
                 if (offset == 0) mods = result else mods = mods + result
                 hasMore = result.size >= 20
-                if (mods.isEmpty()) statusMessage = "Ничего не найдено"
+                if (mods.isEmpty()) statusMessage = "Ничего не найдено для версии $gameVersion"
             } catch (e: Exception) {
                 statusMessage = "Ошибка: ${e.message}"
             } finally {
@@ -288,6 +290,7 @@ fun SearchScreen(
     }
 }
 
+// --- ЭКРАН ИСТОРИИ С КНОПКАМИ ОБНОВИТЬ И УДАЛИТЬ ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(onBack: () -> Unit) {
@@ -307,7 +310,7 @@ fun HistoryScreen(onBack: () -> Unit) {
             TopAppBar(
                 title = { Text("Мои загрузки") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Назад") } },
-                actions = { IconButton(onClick = { DownloadHistory.clearHistory(context); history = emptyList() }) { Icon(Icons.Default.Delete, "Очистить") } },
+                actions = { IconButton(onClick = { DownloadHistory.clearHistory(context); history = emptyList() }) { Icon(Icons.Default.Delete, "Очистить все") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
@@ -339,15 +342,28 @@ fun HistoryScreen(onBack: () -> Unit) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = mod.title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(text = "Скачано ранее", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                                Text(text = "Версия: ${mod.version ?: "Неизвестно"}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                             }
+                            // Кнопка Обновить
                             IconButton(onClick = {
                                 if (!downloadingMod) {
                                     downloadingMod = true
                                     downloadAndInstall(scope, context, mod, onFinish = { downloadingMod = false })
                                 }
                             }) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Скачать заново", tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = MaterialTheme.colorScheme.primary)
+                            }
+                            // Кнопка Удалить из истории
+                            IconButton(onClick = {
+                                // Логика удаления из истории
+                                val currentHistory = DownloadHistory.getHistory(context).toMutableList()
+                                currentHistory.removeAll { it.id == mod.id && it.source == mod.source }
+                                // Для этого нужно добавить метод в DownloadHistory
+                                DownloadHistory.saveHistoryManually(context, currentHistory)
+                                history = currentHistory
+                                Toast.makeText(context, "Удалено из истории", Toast.LENGTH_SHORT).show()
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Удалить", tint = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -376,7 +392,7 @@ fun HistoryScreen(onBack: () -> Unit) {
         androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(); Spacer(Modifier.height(16.dp)); Text("Скачивание мода...")
+                    CircularProgressIndicator(); Spacer(Modifier.height(16.dp)); Text("Скачивание/Обновление...")
                 }
             }
         }
@@ -396,7 +412,11 @@ fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = mod.title, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = mod.description ?: "", fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                Text(text = mod.description ?: "", fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                if (mod.version != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "Версия: ${mod.version}", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                }
             }
             IconButton(onClick = onInstall) { Icon(Icons.Default.Download, contentDescription = "Установить", tint = MaterialTheme.colorScheme.primary) }
         }
@@ -421,6 +441,7 @@ fun ModDetailsContent(
             Column {
                 Text(mod.title, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text("Автор: ${mod.author ?: "Неизвестно"}", fontSize = 14.sp)
+                if (mod.version != null) Text("Версия: ${mod.version}", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -447,7 +468,7 @@ fun ModDetailsContent(
         Button(onClick = onDownloadClick, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Download, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(if (isFromHistory) "Скачать заново" else "Установить мод")
+            Text(if (isFromHistory) "Обновить / Установить" else "Установить мод")
         }
         Spacer(modifier = Modifier.height(24.dp))
     }
@@ -469,6 +490,7 @@ fun FullScreenImageGallery(screenshots: List<Screenshot>, startIndex: Int, onDis
     }
 }
 
+// --- ЛОГИКА СКАЧИВАНИЯ С АВТОУДАЛЕНИЕМ И СОХРАНЕНИЕМ ВЕРСИИ ---
 fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
     scope.launch {
         try {
@@ -484,6 +506,10 @@ fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFini
                 withContext(Dispatchers.Main) { Toast.makeText(context, "Этот файл не для телефона.", Toast.LENGTH_LONG).show(); onFinish() }
                 return@launch
             }
+
+            // Сохраняем версию мода (берем из имени файла или ставим заглушку)
+            val modVersion = file.filename.replace(".${extension}", "")
+            val updatedMod = mod.copy(version = modVersion)
 
             val targetFile = File(context.cacheDir, file.filename)
             withContext(Dispatchers.IO) {
@@ -514,12 +540,16 @@ fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFini
 
             withContext(Dispatchers.Main) {
                 try {
-                    DownloadHistory.addMod(context, mod)
+                    DownloadHistory.addMod(context, updatedMod) // Сохраняем с версией
                     context.startActivity(Intent.createChooser(intent, "Открыть в Minecraft"))
                     
-                    scope.launch(Dispatchers.IO) {
-                        kotlinx.coroutines.delay(5000)
-                        if (targetFile.exists()) targetFile.delete()
+                    // Логика автоудаления
+                    val autoDelete = SettingsPreferences.isAutoDeleteEnabled(context)
+                    if (autoDelete) {
+                        scope.launch(Dispatchers.IO) {
+                            delay(5000) // Ждем 5 сек, чтобы игра успела прочитать
+                            if (targetFile.exists()) targetFile.delete()
+                        }
                     }
                 } catch (e: Exception) {
                     Toast.makeText(context, "Minecraft не установлен.", Toast.LENGTH_LONG).show()
