@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.yandex.mobile.ads.common.MobileAds
+import com.yandex.mobile.ads.common.YandexAds // <-- Исправленный импорт
 import kotlinx.coroutines.launch
 import ru.minecraftmods.app.data.LanguagePreferences
 import ru.minecraftmods.app.data.ModRepository
@@ -24,18 +24,17 @@ import ru.minecraftmods.app.ui.SearchScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        MobileAds.initialize(this) { }
 
-        // Инициализируем менеджер рекламы
+        YandexAds.initialize(this) { } // <-- Инициализация YandexAds
+
         val adManager = AppOpenAdManager(this)
 
         setContent {
             val context = LocalContext.current
-            
+
             var themeKey by remember { mutableStateOf(ThemePreferences.getTheme(context)) }
             var languageKey by remember { mutableStateOf(LanguagePreferences.getTargetLanguage(context)) }
-            
+
             var modelsReady by remember { mutableStateOf(TranslatorManager.isReady(context)) }
             var loading by remember { mutableStateOf(!modelsReady) }
             var error by remember { mutableStateOf<String?>(null) }
@@ -56,7 +55,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Показываем рекламу при запуске (каждый 2-й раз)
             LaunchedEffect(Unit) {
                 if (modelsReady && !loading) {
                     adManager.showAdIfAvailable(this@MainActivity)
@@ -91,5 +89,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        TranslatorManager.close()
     }
 }
