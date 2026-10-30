@@ -29,7 +29,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import com.yandex.mobile.ads.banner.BannerAdSize
+import com.yandex.mobile.ads.banner.BannerAdView
+import com.yandex.mobile.ads.common.AdRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -60,7 +64,10 @@ fun SearchScreen(
 
     var query by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf("downloads") }
-    var gameVersion by remember { mutableStateOf(SettingsPreferences.getGameVersion(context)) } // Берем сохраненную версию
+    
+    // Читаем версию при запуске
+    var gameVersion by remember { mutableStateOf(SettingsPreferences.getGameVersion(context)) }
+    
     var mods by remember { mutableStateOf<List<Mod>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
@@ -78,7 +85,26 @@ fun SearchScreen(
     BackHandler(enabled = showSettings || showHistory || drawerState.isOpen || selectedMod != null) {
         when {
             selectedMod != null -> selectedMod = null
-            showSettings -> showSettings = false
+            showSettings -> {
+                showSettings = false
+                // При выходе из настроек обновляем версию и делаем перезапрос
+                gameVersion = SettingsPreferences.getGameVersion(context)
+                query = "" 
+                offset = 0
+                hasMore = true
+                mods = emptyList()
+                scope.launch {
+                    loading = true
+                    try {
+                        val initialMods = ModRepository.search("", "all", 20, 0, gameVersion, "downloads")
+                        mods = initialMods
+                    } catch (e: Exception) {
+                        statusMessage = "Ошибка: ${e.message}"
+                    } finally {
+                        loading = false
+                    }
+                }
+            }
             showHistory -> showHistory = false
             drawerState.isOpen -> scope.launch { drawerState.close() }
         }
@@ -89,7 +115,6 @@ fun SearchScreen(
             while (loadProgress < 95) { delay(30); loadProgress += 1 }
         }
         try {
-            // Передаем версию игры при первом запросе
             val initialMods = ModRepository.search("", "all", 20, 0, gameVersion, "downloads")
             mods = initialMods
         } catch (e: Exception) {
@@ -103,7 +128,25 @@ fun SearchScreen(
 
     if (showSettings) {
         SettingsScreen(
-            onBack = { showSettings = false },
+            onBack = { 
+                showSettings = false 
+                gameVersion = SettingsPreferences.getGameVersion(context)
+                query = ""
+                offset = 0
+                hasMore = true
+                mods = emptyList()
+                scope.launch {
+                    loading = true
+                    try {
+                        val initialMods = ModRepository.search("", "all", 20, 0, gameVersion, "downloads")
+                        mods = initialMods
+                    } catch (e: Exception) {
+                        statusMessage = "Ошибка: ${e.message}"
+                    } finally {
+                        loading = false
+                    }
+                }
+            },
             onLanguageChanged = { newLang -> onLanguageChanged(newLang) },
             onThemeChanged = { newTheme -> onThemeChanged(newTheme) }
         )
@@ -206,6 +249,9 @@ fun SearchScreen(
                     actions = { IconButton(onClick = { showHistory = true }) { Icon(Icons.Default.History, "История") } },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
                 )
+            },
+            bottomBar = {
+                YandexBanner(adUnitId = "demo-banner-yandex")
             }
         ) { padding ->
             Column(modifier = Modifier.padding(padding).fillMaxSize().padding(horizontal = 12.dp)) {
@@ -355,10 +401,8 @@ fun HistoryScreen(onBack: () -> Unit) {
                             }
                             // Кнопка Удалить из истории
                             IconButton(onClick = {
-                                // Логика удаления из истории
                                 val currentHistory = DownloadHistory.getHistory(context).toMutableList()
                                 currentHistory.removeAll { it.id == mod.id && it.source == mod.source }
-                                // Для этого нужно добавить метод в DownloadHistory
                                 DownloadHistory.saveHistoryManually(context, currentHistory)
                                 history = currentHistory
                                 Toast.makeText(context, "Удалено из истории", Toast.LENGTH_SHORT).show()
@@ -490,7 +534,24 @@ fun FullScreenImageGallery(screenshots: List<Screenshot>, startIndex: Int, onDis
     }
 }
 
-// --- ЛОГИКА СКАЧИВАНИЯ С АВТОУДАЛЕНИЕМ И СОХРАНЕНИЕМ ВЕРСИИ ---
+@Composable
+fun YandexBanner(adUnitId: String) {
+    AndroidView(
+        factory = { context ->
+            BannerAdView(context).apply {
+                // Используем stickySize для SDK 8.x
+                setAdSize(BannerAdSize.stickySize(context, 320))
+                // ID рекламы передается в AdRequest
+                loadAd(AdRequest.Builder(adUnitId).build())
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .background(MaterialTheme.colorScheme.surface)
+    )
+}
+
 fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
     scope.launch {
         try {
@@ -507,7 +568,7 @@ fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFini
                 return@launch
             }
 
-            // Сохраняем версию мода (берем из имени файла или ставим заглушку)
+            // Сохраняем версию мода (берем из имени файла)
             val modVersion = file.filename.replace(".${extension}", "")
             val updatedMod = mod.copy(version = modVersion)
 
