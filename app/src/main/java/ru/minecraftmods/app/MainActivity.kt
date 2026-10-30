@@ -11,17 +11,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.yandex.mobile.ads.common.MobileAds
 import kotlinx.coroutines.launch
 import ru.minecraftmods.app.data.LanguagePreferences
 import ru.minecraftmods.app.data.ModRepository
 import ru.minecraftmods.app.data.ThemePreferences
 import ru.minecraftmods.app.data.TranslatorManager
+import ru.minecraftmods.app.ui.AppOpenAdManager
 import ru.minecraftmods.app.ui.MinecraftModsTheme
 import ru.minecraftmods.app.ui.SearchScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        MobileAds.initialize(this) { }
+
+        // Инициализируем менеджер рекламы
+        val adManager = AppOpenAdManager(this)
 
         setContent {
             val context = LocalContext.current
@@ -49,6 +56,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            // Показываем рекламу при запуске (каждый 2-й раз)
+            LaunchedEffect(Unit) {
+                if (modelsReady && !loading) {
+                    adManager.showAdIfAvailable(this@MainActivity)
+                }
+            }
+
             MinecraftModsTheme(themeMode = themeKey) {
                 when {
                     loading -> {
@@ -56,9 +70,7 @@ class MainActivity : ComponentActivity() {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.height(16.dp))
-                                Text("Загрузка модели перевода...", color = MaterialTheme.colorScheme.onBackground)
-                                Spacer(Modifier.height(8.dp))
-                                Text("Это займет всего минуту и нужно только один раз", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                                Text("Загрузка...", color = MaterialTheme.colorScheme.onBackground)
                             }
                         }
                     }
@@ -79,10 +91,5 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        TranslatorManager.close()
     }
 }
