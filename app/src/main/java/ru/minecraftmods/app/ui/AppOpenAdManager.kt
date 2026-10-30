@@ -2,19 +2,14 @@ package ru.minecraftmods.app.ui
 
 import android.app.Activity
 import android.content.Context
-import androidx.compose.runtime.*
 import com.yandex.mobile.ads.common.AdRequest
 import com.yandex.mobile.ads.common.AdRequestError
 import com.yandex.mobile.ads.common.ImpressionData
 import com.yandex.mobile.ads.interstitial.InterstitialAd
 import com.yandex.mobile.ads.interstitial.InterstitialAdEventListener
-import com.yandex.mobile.ads.interstitial.InterstitialAdLoadResult
+import com.yandex.mobile.ads.interstitial.InterstitialAdLoadListener
 import com.yandex.mobile.ads.interstitial.InterstitialAdLoader
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
-// Тестовый ID для межстраничной рекламы (Interstitial)
 private const val TEST_INTERSTITIAL_AD_UNIT_ID = "demo-interstitial-yandex"
 
 class AppOpenAdManager(private val context: Context) {
@@ -24,16 +19,15 @@ class AppOpenAdManager(private val context: Context) {
 
     fun showAdIfAvailable(activity: Activity) {
         launchCount++
-        // Показываем рекламу только на каждый второй запуск (2, 4, 6...)
-        if (launchCount % 2 != 0) return 
-        
+        if (launchCount % 2 != 0) return
+
         if (isLoading) return
-        
+
         isLoading = true
         val adRequest = AdRequest.Builder(TEST_INTERSTITIAL_AD_UNIT_ID).build()
         val loader = InterstitialAdLoader(context)
-        
-        loader.setAdLoadListener(object : InterstitialAdLoader.AdLoadListener {
+
+        loader.setAdLoadListener(object : InterstitialAdLoadListener {
             override fun onAdLoaded(ad: InterstitialAd) {
                 interstitialAd = ad
                 isLoading = false
