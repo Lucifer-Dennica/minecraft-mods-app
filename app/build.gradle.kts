@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "ru.minecraftmods.app"
-    compileSdk = 35 // <-- Было 34
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "ru.minecraftmods.app"
         minSdk = 24
-        targetSdk = 35 // <-- Было 34
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
     }
@@ -23,27 +23,14 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
-    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    
-    kotlinOptions { 
-        jvmTarget = "17" 
-    }
-    
-    buildFeatures { 
-        compose = true 
-    }
-    
-    composeOptions { 
-        kotlinCompilerExtensionVersion = "1.5.14" 
-    }
-    
-    packaging { 
-        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" 
-    }
+    kotlinOptions { jvmTarget = "17" }
+    buildFeatures { compose = true }
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
+    packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
 dependencies {
@@ -67,7 +54,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     implementation("io.coil-kt:coil-compose:2.6.0")
-    
+
     implementation("com.google.mlkit:translate:17.0.3")
 
+    // Yandex Mobile Ads SDK
+    implementation("com.yandex.android:mobileads:8.5.0")
 }
