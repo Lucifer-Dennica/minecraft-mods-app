@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.yandex.mobile.ads.common.YandexAds // <-- Исправленный импорт
+import com.yandex.mobile.ads.common.YandexAds
 import kotlinx.coroutines.launch
 import ru.minecraftmods.app.data.LanguagePreferences
 import ru.minecraftmods.app.data.ModRepository
@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        YandexAds.initialize(this) { } // <-- Инициализация YandexAds
+        YandexAds.initialize(this) { }
 
         val adManager = AppOpenAdManager(this)
 
