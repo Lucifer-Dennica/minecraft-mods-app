@@ -58,5 +58,5 @@ dependencies {
     implementation("com.google.mlkit:translate:17.0.3")
 
     // Yandex Mobile Ads SDK
-    implementation("com.yandex.android:mobileads:8.5.0")
+    implementation("com.yandex.android:mobileads:8.6.0")
 }
