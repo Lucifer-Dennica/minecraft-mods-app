@@ -535,8 +535,8 @@ fun YandexBanner(adUnitId: String) {
     AndroidView(
         factory = { context ->
             BannerAdView(context).apply {
-                // ИСПРАВЛЕНО: используем sticky320x50 вместо удаленного stickySize
-                setAdSize(BannerAdSize.sticky320x50(context))
+                // ИСПРАВЛЕНО: используем BannerAdSize.fixed для SDK 8.x
+                setAdSize(BannerAdSize.fixed(context, 320, 50))
                 loadAd(AdRequest.Builder(adUnitId).build())
             }
         },
