@@ -65,7 +65,6 @@ fun SearchScreen(
     var query by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf("downloads") }
     
-    // Читаем версию при запуске
     var gameVersion by remember { mutableStateOf(SettingsPreferences.getGameVersion(context)) }
     
     var mods by remember { mutableStateOf<List<Mod>>(emptyList()) }
@@ -87,7 +86,6 @@ fun SearchScreen(
             selectedMod != null -> selectedMod = null
             showSettings -> {
                 showSettings = false
-                // При выходе из настроек обновляем версию и делаем перезапрос
                 gameVersion = SettingsPreferences.getGameVersion(context)
                 query = "" 
                 offset = 0
@@ -390,7 +388,6 @@ fun HistoryScreen(onBack: () -> Unit) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(text = "Версия: ${mod.version ?: "Неизвестно"}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                             }
-                            // Кнопка Обновить
                             IconButton(onClick = {
                                 if (!downloadingMod) {
                                     downloadingMod = true
@@ -399,7 +396,6 @@ fun HistoryScreen(onBack: () -> Unit) {
                             }) {
                                 Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = MaterialTheme.colorScheme.primary)
                             }
-                            // Кнопка Удалить из истории
                             IconButton(onClick = {
                                 val currentHistory = DownloadHistory.getHistory(context).toMutableList()
                                 currentHistory.removeAll { it.id == mod.id && it.source == mod.source }
@@ -539,8 +535,8 @@ fun YandexBanner(adUnitId: String) {
     AndroidView(
         factory = { context ->
             BannerAdView(context).apply {
-                // Используем правильный метод для SDK 8.x
-                setAdSize(BannerAdSize.stickySize(context, 320))
+                // ИСПРАВЛЕНО: используем sticky320x50 вместо удаленного stickySize
+                setAdSize(BannerAdSize.sticky320x50(context))
                 loadAd(AdRequest.Builder(adUnitId).build())
             }
         },
@@ -567,7 +563,6 @@ fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFini
                 return@launch
             }
 
-            // Сохраняем версию мода (берем из имени файла)
             val modVersion = file.filename.replace(".${extension}", "")
             val updatedMod = mod.copy(version = modVersion)
 
@@ -600,14 +595,13 @@ fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFini
 
             withContext(Dispatchers.Main) {
                 try {
-                    DownloadHistory.addMod(context, updatedMod) // Сохраняем с версией
+                    DownloadHistory.addMod(context, updatedMod)
                     context.startActivity(Intent.createChooser(intent, "Открыть в Minecraft"))
                     
-                    // Логика автоудаления
                     val autoDelete = SettingsPreferences.isAutoDeleteEnabled(context)
                     if (autoDelete) {
                         scope.launch(Dispatchers.IO) {
-                            delay(5000) // Ждем 5 сек, чтобы игра успела прочитать
+                            delay(5000)
                             if (targetFile.exists()) targetFile.delete()
                         }
                     }
