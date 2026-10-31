@@ -2,6 +2,7 @@ package ru.minecraftmods.app.ui
 
 import android.app.Activity
 import android.content.Context
+import com.yandex.mobile.ads.common.AdError
 import com.yandex.mobile.ads.common.AdRequest
 import com.yandex.mobile.ads.common.AdRequestError
 import com.yandex.mobile.ads.common.ImpressionData
@@ -27,13 +28,13 @@ class AppOpenAdManager(private val context: Context) {
         val adRequest = AdRequest.Builder(TEST_INTERSTITIAL_AD_UNIT_ID).build()
         val loader = InterstitialAdLoader(context)
 
-        loader.setAdLoadListener(object : InterstitialAdLoadListener {
+        loader.loadAd(adRequest, object : InterstitialAdLoadListener {
             override fun onAdLoaded(ad: InterstitialAd) {
                 interstitialAd = ad
                 isLoading = false
                 ad.setAdEventListener(object : InterstitialAdEventListener {
                     override fun onAdShown() {}
-                    override fun onAdFailedToShow(error: AdRequestError) { interstitialAd = null }
+                    override fun onAdFailedToShow(adError: AdError) { interstitialAd = null }
                     override fun onAdDismissed() { interstitialAd = null }
                     override fun onAdClicked() {}
                     override fun onAdImpression(data: ImpressionData?) {}
@@ -46,6 +47,5 @@ class AppOpenAdManager(private val context: Context) {
                 interstitialAd = null
             }
         })
-        loader.loadAd(adRequest)
     }
 }
