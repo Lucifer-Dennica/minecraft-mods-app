@@ -11,33 +11,38 @@ import com.yandex.mobile.ads.interstitial.InterstitialAdEventListener
 import com.yandex.mobile.ads.interstitial.InterstitialAdLoadListener
 import com.yandex.mobile.ads.interstitial.InterstitialAdLoader
 
-// Твой реальный ID для рекламы при открытии
+// Твой реальный ID для рекламы при открытии и скачивании
 private const val INTERSTITIAL_AD_UNIT_ID = "R-M-20308863-2"
 
 class AppOpenAdManager(private val context: Context) {
-    private var interstitialAd: InterstitialAd? = null
-    private var isLoading = false
     private var launchCount = 0
 
+    // Показ при запуске приложения (каждый 2-й раз)
     fun showAdIfAvailable(activity: Activity) {
         launchCount++
-        // Показ на каждый 2-й запуск
         if (launchCount % 2 != 0) return
+        loadAndShowAd(activity, onDismiss = {}, onError = {})
+    }
 
-        if (isLoading) return
+    // Показ при скачивании мода (вызывается извне)
+    fun showInterstitialAd(activity: Activity, onDismiss: () -> Unit, onError: () -> Unit) {
+        loadAndShowAd(activity, onDismiss, onError)
+    }
 
-        isLoading = true
+    private fun loadAndShowAd(activity: Activity, onDismiss: () -> Unit, onError: () -> Unit) {
         val adRequest = AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build()
         val loader = InterstitialAdLoader(context)
 
         loader.loadAd(adRequest, object : InterstitialAdLoadListener {
             override fun onAdLoaded(ad: InterstitialAd) {
-                interstitialAd = ad
-                isLoading = false
                 ad.setAdEventListener(object : InterstitialAdEventListener {
                     override fun onAdShown() {}
-                    override fun onAdFailedToShow(adError: AdError) { interstitialAd = null }
-                    override fun onAdDismissed() { interstitialAd = null }
+                    override fun onAdFailedToShow(adError: AdError) { 
+                        onError() 
+                    }
+                    override fun onAdDismissed() { 
+                        onDismiss() 
+                    }
                     override fun onAdClicked() {}
                     override fun onAdImpression(data: ImpressionData?) {}
                 })
@@ -45,8 +50,8 @@ class AppOpenAdManager(private val context: Context) {
             }
 
             override fun onAdFailedToLoad(error: AdRequestError) {
-                isLoading = false
-                interstitialAd = null
+                // Если реклама не загрузилась (нет интернета и т.д.), продолжаем без нее
+                onError()
             }
         })
     }
