@@ -11,7 +11,8 @@ import com.yandex.mobile.ads.interstitial.InterstitialAdEventListener
 import com.yandex.mobile.ads.interstitial.InterstitialAdLoadListener
 import com.yandex.mobile.ads.interstitial.InterstitialAdLoader
 
-private const val TEST_INTERSTITIAL_AD_UNIT_ID = "demo-interstitial-yandex"
+// Твой реальный ID для рекламы при открытии
+private const val INTERSTITIAL_AD_UNIT_ID = "R-M-20308863-2"
 
 class AppOpenAdManager(private val context: Context) {
     private var interstitialAd: InterstitialAd? = null
@@ -20,12 +21,13 @@ class AppOpenAdManager(private val context: Context) {
 
     fun showAdIfAvailable(activity: Activity) {
         launchCount++
+        // Показ на каждый 2-й запуск
         if (launchCount % 2 != 0) return
 
         if (isLoading) return
 
         isLoading = true
-        val adRequest = AdRequest.Builder(TEST_INTERSTITIAL_AD_UNIT_ID).build()
+        val adRequest = AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build()
         val loader = InterstitialAdLoader(context)
 
         loader.loadAd(adRequest, object : InterstitialAdLoadListener {
