@@ -4,11 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
@@ -33,7 +31,6 @@ import ru.minecraftmods.app.data.SettingsPreferences
 import ru.minecraftmods.app.data.ThemePreferences
 import ru.minecraftmods.app.data.TranslatorManager
 
-// Твой реальный ID для баннера
 private const val BANNER_AD_UNIT_ID = "R-M-20308863-1"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,11 +40,9 @@ fun SettingsScreen(
     onLanguageChanged: (String) -> Unit,
     onThemeChanged: (String) -> Unit
 ) {
-    // Состояния для навигации внутри настроек
     var showAboutScreen by remember { mutableStateOf(false) }
     var showLanguageScreen by remember { mutableStateOf(false) }
 
-    // Обработка системной кнопки "Назад"
     BackHandler(enabled = showAboutScreen || showLanguageScreen) {
         if (showAboutScreen) showAboutScreen = false
         else if (showLanguageScreen) showLanguageScreen = false
@@ -66,7 +61,6 @@ fun SettingsScreen(
         return
     }
 
-    // --- ГЛАВНЫЙ ЭКРАН НАСТРОЕК ---
     val context = LocalContext.current
     var currentTheme by remember { mutableStateOf(ThemePreferences.getTheme(context)) }
     var autoDelete by remember { mutableStateOf(SettingsPreferences.isAutoDeleteEnabled(context)) }
@@ -83,23 +77,13 @@ fun SettingsScreen(
             )
         },
         bottomBar = {
-            // Баннер рекламы внизу настроек
-            AndroidView(
-                factory = { ctx ->
-                    BannerAdView(ctx).apply {
-                        setAdSize(BannerAdSize.fixed(ctx, 320, 50))
-                        loadAd(AdRequest.Builder(BANNER_AD_UNIT_ID).build())
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(50.dp).background(MaterialTheme.colorScheme.surface)
-            )
+            YandexBannerBottom(BANNER_AD_UNIT_ID)
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.padding(padding).fillMaxSize().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ТЕМА
             item {
                 Spacer(Modifier.height(8.dp))
                 Text("Тема оформления", fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -112,7 +96,6 @@ fun SettingsScreen(
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
             }
 
-            // ВЕРСИЯ ИГРЫ
             item {
                 Text("Версия Minecraft", fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text("Влияет на совместимость модов", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
@@ -129,7 +112,6 @@ fun SettingsScreen(
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
             }
 
-            // АВТОУДАЛЕНИЕ
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -151,7 +133,6 @@ fun SettingsScreen(
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
             }
 
-            // ПЕРЕХОД К ЯЗЫКАМ
             item {
                 SettingItem(
                     icon = Icons.Default.Language,
@@ -161,7 +142,6 @@ fun SettingsScreen(
                 )
             }
 
-            // ПЕРЕХОД К "О ПРИЛОЖЕНИИ"
             item {
                 SettingItem(
                     icon = Icons.Default.Info,
@@ -175,7 +155,6 @@ fun SettingsScreen(
     }
 }
 
-// --- ВСПОМОГАТЕЛЬНЫЙ КОМПОНЕНТ ДЛЯ ПУНКТА МЕНЮ ---
 @Composable
 fun SettingItem(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
     Card(
@@ -188,7 +167,7 @@ fun SettingItem(icon: ImageVector, title: String, subtitle: String, onClick: () 
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
@@ -198,7 +177,6 @@ fun SettingItem(icon: ImageVector, title: String, subtitle: String, onClick: () 
     }
 }
 
-// --- ЭКРАН ЯЗЫКОВ ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LanguageScreen(onBack: () -> Unit, onLanguageChanged: (String) -> Unit) {
@@ -215,6 +193,9 @@ fun LanguageScreen(onBack: () -> Unit, onLanguageChanged: (String) -> Unit) {
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Назад") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
+        },
+        bottomBar = {
+            YandexBannerBottom(BANNER_AD_UNIT_ID)
         }
     ) { padding ->
         LazyColumn(modifier = Modifier.padding(padding).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -270,19 +251,17 @@ fun LanguageScreen(onBack: () -> Unit, onLanguageChanged: (String) -> Unit) {
     }
 }
 
-// --- ЭКРАН "О ПРИЛОЖЕНИИ" ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
 
-    // Функция для безопасного открытия ссылок
     fun openLink(url: String) {
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             context.startActivity(intent)
         } catch (e: Exception) {
-            // Обработка, если нет браузера
+            // Обработка
         }
     }
 
@@ -293,6 +272,9 @@ fun AboutScreen(onBack: () -> Unit) {
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Назад") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
+        },
+        bottomBar = {
+            YandexBannerBottom(BANNER_AD_UNIT_ID)
         }
     ) { padding ->
         LazyColumn(
@@ -300,7 +282,6 @@ fun AboutScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Шапка
             item {
                 Icon(Icons.Default.Store, contentDescription = null, modifier = Modifier.size(72.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(8.dp))
@@ -314,7 +295,6 @@ fun AboutScreen(onBack: () -> Unit) {
                 HorizontalDivider(Modifier.padding(vertical = 16.dp))
             }
 
-            // Разработчик
             item {
                 Text("Разработчик", fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
@@ -333,7 +313,6 @@ fun AboutScreen(onBack: () -> Unit) {
                 HorizontalDivider(Modifier.padding(vertical = 16.dp))
             }
 
-            // Донаты
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
@@ -359,7 +338,6 @@ fun AboutScreen(onBack: () -> Unit) {
                 HorizontalDivider(Modifier.padding(vertical = 16.dp))
             }
 
-            // Отзыв
             item {
                 Text("Оставьте отзыв", fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(4.dp))
@@ -367,13 +345,25 @@ fun AboutScreen(onBack: () -> Unit) {
                     "Ваш отзыв в магазине приложений (RuStore) — это лучшая мотивация развивать проект. Напишите, что вам нравится, или что мы можем улучшить. Это займет всего минуту!",
                     fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
-                Spacer(Modifier.height(12.dp))
-                // Здесь можно добавить кнопку перехода в RuStore (если знаешь package name)
-                // Button(onClick = { openLink("https://www.rustore.ru/catalog/app/ru.minecraftmods.app") }) {
-                //     Text("Оставить отзыв в RuStore")
-                // }
                 Spacer(Modifier.height(32.dp))
             }
         }
     }
+}
+
+// Универсальный баннер для низа экрана
+@Composable
+fun YandexBannerBottom(adUnitId: String) {
+    AndroidView(
+        factory = { context ->
+            BannerAdView(context).apply {
+                setAdSize(BannerAdSize.fixed(context, 320, 50))
+                loadAd(AdRequest.Builder(adUnitId).build())
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .background(MaterialTheme.colorScheme.surface)
+    )
 }
