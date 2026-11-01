@@ -1,5 +1,6 @@
 package ru.minecraftmods.app.ui
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
@@ -64,7 +65,6 @@ fun SearchScreen(
 
     var query by remember { mutableStateOf("") }
     var sort by remember { mutableStateOf("downloads") }
-    
     var gameVersion by remember { mutableStateOf(SettingsPreferences.getGameVersion(context)) }
     
     var mods by remember { mutableStateOf<List<Mod>>(emptyList()) }
@@ -249,7 +249,7 @@ fun SearchScreen(
                 )
             },
             bottomBar = {
-                YandexBanner(adUnitId = "demo-banner-yandex")
+                YandexBanner(adUnitId = "R-M-20308863-1")
             }
         ) { padding ->
             Column(modifier = Modifier.padding(padding).fillMaxSize().padding(horizontal = 12.dp)) {
@@ -334,7 +334,7 @@ fun SearchScreen(
     }
 }
 
-// --- ЭКРАН ИСТОРИИ С КНОПКАМИ ОБНОВИТЬ И УДАЛИТЬ ---
+// --- ЭКРАН ИСТОРИИ ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(onBack: () -> Unit) {
@@ -536,8 +536,7 @@ fun YandexBanner(adUnitId: String) {
         factory = { context ->
             BannerAdView(context).apply {
                 setAdSize(BannerAdSize.fixed(context, 320, 50))
-                // Используем реальный ID
-                loadAd(AdRequest.Builder("R-M-20308863-1").build())
+                loadAd(AdRequest.Builder(adUnitId).build())
             }
         },
         modifier = Modifier
@@ -547,7 +546,30 @@ fun YandexBanner(adUnitId: String) {
     )
 }
 
+// --- ФУНКЦИЯ СКАЧИВАНИЯ С РЕКЛАМОЙ КАЖДЫЙ 5-й РАЗ ---
 fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
+    val downloadCount = SettingsPreferences.incrementDownloadCount(context)
+
+    // Если это каждый 5-й скачанный мод - показываем рекламу
+    if (downloadCount % 5 == 0) {
+        val activity = context as? Activity
+        if (activity != null) {
+            val adManager = AppOpenAdManager(context)
+            // Показываем рекламу. Когда она закрывается (или если ошибка) - запускаем скачивание
+            adManager.showInterstitialAd(activity, 
+                onDismiss = { performDownload(scope, context, mod, onFinish) },
+                onError = { performDownload(scope, context, mod, onFinish) }
+            )
+            return
+        }
+    }
+
+    // Если реклама не нужна - просто скачиваем
+    performDownload(scope, context, mod, onFinish)
+}
+
+// Вынесенная функция самого скачивания (чтобы не дублировать код)
+fun performDownload(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
     scope.launch {
         try {
             val files = withContext(Dispatchers.IO) { ModRepository.getFiles(mod.id, mod.source) }
