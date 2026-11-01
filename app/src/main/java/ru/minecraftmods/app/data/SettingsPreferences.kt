@@ -6,8 +6,8 @@ object SettingsPreferences {
     private const val PREFS_NAME = "settings_prefs"
     private const val KEY_AUTO_DELETE = "auto_delete_mods"
     private const val KEY_GAME_VERSION = "game_version"
+    private const val KEY_DOWNLOAD_COUNT = "download_count"
 
-    // Список официально поддерживаемых версий
     private val SUPPORTED_VERSIONS = listOf("1.21", "1.20", "1.19", "1.18", "1.17", "1.16")
 
     fun isAutoDeleteEnabled(context: Context): Boolean {
@@ -20,23 +20,27 @@ object SettingsPreferences {
             .edit().putBoolean(KEY_AUTO_DELETE, enabled).apply()
     }
 
+    fun incrementDownloadCount(context: Context): Int {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val current = prefs.getInt(KEY_DOWNLOAD_COUNT, 0) + 1
+        prefs.edit().putInt(KEY_DOWNLOAD_COUNT, current).apply()
+        return current
+    }
+
     fun getGameVersion(context: Context): String {
         val saved = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_GAME_VERSION, null)
         
-        // Если версия сохранена и она есть в списке поддерживаемых, возвращаем её
         if (saved != null && SUPPORTED_VERSIONS.contains(saved)) return saved
         
-        // Иначе пытаемся определить автоматически
         return try {
             val pInfo = context.packageManager.getPackageInfo("com.mojang.minecraftpe", 0)
             val fullVersion = pInfo.versionName ?: "1.21" 
             val shortVersion = fullVersion.split(".").take(2).joinToString(".")
             
-            // Если автоопределенная версия есть в списке, берем её. Если нет (например, 1.26) — ставим 1.21
             if (SUPPORTED_VERSIONS.contains(shortVersion)) shortVersion else "1.21"
         } catch (e: Exception) {
-            "1.21" // По умолчанию
+            "1.21"
         }
     }
 
