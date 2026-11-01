@@ -535,9 +535,9 @@ fun YandexBanner(adUnitId: String) {
     AndroidView(
         factory = { context ->
             BannerAdView(context).apply {
-                // ИСПРАВЛЕНО: используем BannerAdSize.fixed для SDK 8.x
                 setAdSize(BannerAdSize.fixed(context, 320, 50))
-                loadAd(AdRequest.Builder(adUnitId).build())
+                // Используем реальный ID
+                loadAd(AdRequest.Builder("R-M-20308863-1").build())
             }
         },
         modifier = Modifier
