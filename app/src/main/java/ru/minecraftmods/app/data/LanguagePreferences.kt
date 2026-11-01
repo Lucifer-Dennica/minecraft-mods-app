@@ -2,6 +2,7 @@ package ru.minecraftmods.app.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import java.util.Locale
 
 object LanguagePreferences {
 
@@ -14,7 +15,18 @@ object LanguagePreferences {
     }
 
     fun getTargetLanguage(context: Context): String {
-        return prefs(context).getString(KEY_TARGET_LANGUAGE, "ru") ?: "ru"
+        val saved = prefs(context).getString(KEY_TARGET_LANGUAGE, null)
+        if (saved != null) return saved
+
+        // Если язык еще не сохранен (первый запуск) - определяем язык системы
+        val systemLang = Locale.getDefault().language // например "en", "ru", "de"
+        val supportedCodes = listOf("ru", "en", "es", "de", "fr", "it", "pt", "pl", "tr", "uk", "zh", "ja", "ko")
+        
+        val initialLang = if (supportedCodes.contains(systemLang)) systemLang else "en"
+        
+        // Сохраняем его, чтобы при следующем запуске сразу брать отсюда
+        prefs(context).edit().putString(KEY_TARGET_LANGUAGE, initialLang).apply()
+        return initialLang
     }
 
     fun setTargetLanguage(context: Context, code: String) {
