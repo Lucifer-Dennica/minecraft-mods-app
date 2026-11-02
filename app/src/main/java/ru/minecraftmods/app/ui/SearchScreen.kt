@@ -14,7 +14,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -463,6 +465,7 @@ fun ModCard(mod: Mod, onClick: () -> Unit, onInstall: () -> Unit) {
     }
 }
 
+// --- ОБНОВЛЕННЫЙ ЭКРАН ДЕТАЛЕЙ С БАННЕРОМ ВНИЗУ ---
 @Composable
 fun ModDetailsContent(
     mod: Mod,
@@ -472,7 +475,13 @@ fun ModDetailsContent(
     onDownloadClick: () -> Unit,
     isFromHistory: Boolean = false
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+    // Используем Column с вертикальной прокруткой, чтобы длинные описания не обрезались
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (!mod.iconUrl.isNullOrBlank()) {
                 AsyncImage(model = mod.iconUrl, contentDescription = null, modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)))
@@ -484,7 +493,9 @@ fun ModDetailsContent(
                 if (mod.version != null) Text("Версия: ${mod.version}", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
+        
         Spacer(modifier = Modifier.height(16.dp))
+        
         if (loadingScreenshots) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (screenshots.isNotEmpty()) {
@@ -501,16 +512,25 @@ fun ModDetailsContent(
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
+        
         Text("Описание", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Spacer(modifier = Modifier.height(8.dp))
         Text(mod.description ?: "Нет описания", fontSize = 14.sp)
+        
         Spacer(modifier = Modifier.height(24.dp))
+        
+        // Кнопка скачивания
         Button(onClick = onDownloadClick, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Download, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text(if (isFromHistory) "Обновить / Установить" else "Установить мод")
         }
-        Spacer(modifier = Modifier.height(24.dp))
+
+        // БАННЕР ПОД КНОПКОЙ
+        Spacer(modifier = Modifier.height(16.dp))
+        YandexBanner(adUnitId = "R-M-20308863-1")
+        
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -546,16 +566,14 @@ fun YandexBanner(adUnitId: String) {
     )
 }
 
-// --- ФУНКЦИЯ СКАЧИВАНИЯ С РЕКЛАМОЙ КАЖДЫЙ 5-й РАЗ ---
+// --- ЛОГИКА СКАЧИВАНИЯ С РЕКЛАМОЙ КАЖДЫЙ 5-й РАЗ ---
 fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
     val downloadCount = SettingsPreferences.incrementDownloadCount(context)
 
-    // Если это каждый 5-й скачанный мод - показываем рекламу
     if (downloadCount % 5 == 0) {
         val activity = context as? Activity
         if (activity != null) {
             val adManager = AppOpenAdManager(context)
-            // Показываем рекламу. Когда она закрывается (или если ошибка) - запускаем скачивание
             adManager.showInterstitialAd(activity, 
                 onDismiss = { performDownload(scope, context, mod, onFinish) },
                 onError = { performDownload(scope, context, mod, onFinish) }
@@ -563,12 +581,9 @@ fun downloadAndInstall(scope: CoroutineScope, context: Context, mod: Mod, onFini
             return
         }
     }
-
-    // Если реклама не нужна - просто скачиваем
     performDownload(scope, context, mod, onFinish)
 }
 
-// Вынесенная функция самого скачивания (чтобы не дублировать код)
 fun performDownload(scope: CoroutineScope, context: Context, mod: Mod, onFinish: () -> Unit) {
     scope.launch {
         try {
