@@ -1,9 +1,3 @@
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("com.google.devtools.ksp")
-}
-
 android {
     namespace = "ru.minecraftmods.app"
     compileSdk = 34
@@ -16,10 +10,21 @@ android {
         versionName = "1.0.0"
     }
 
+    // --- ДОБАВЛЯЕМ БЛОК ПОДПИСИ ---
+    signingConfigs {
+        create("release") {
+            storeFile = file("keystore.jks") // Файл будет создан автоматически в CI
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("KEY_ALIAS")
+            keyPassword = System.getenv("KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
+            signingConfig = signingConfigs.getByName("release") // Применяем подпись
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
