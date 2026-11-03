@@ -1,3 +1,9 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("com.google.devtools.ksp")
+}
+
 android {
     namespace = "ru.minecraftmods.app"
     compileSdk = 34
@@ -10,10 +16,11 @@ android {
         versionName = "1.0.0"
     }
 
-    // --- ДОБАВЛЯЕМ БЛОК ПОДПИСИ ---
+    // --- БЛОК ПОДПИСИ (ДЛЯ RELEASE) ---
     signingConfigs {
         create("release") {
-            storeFile = file("keystore.jks") // Файл будет создан автоматически в CI
+            // Файл keystore.jks будет создан автоматически в GitHub Actions
+            storeFile = file("keystore.jks")
             storePassword = System.getenv("KEYSTORE_PASSWORD")
             keyAlias = System.getenv("KEY_ALIAS")
             keyPassword = System.getenv("KEY_PASSWORD")
@@ -28,14 +35,27 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
-    packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    
+    kotlinOptions { 
+        jvmTarget = "17" 
+    }
+    
+    buildFeatures { 
+        compose = true 
+    }
+    
+    composeOptions { 
+        kotlinCompilerExtensionVersion = "1.5.14" 
+    }
+    
+    packaging { 
+        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" 
+    }
 }
 
 dependencies {
